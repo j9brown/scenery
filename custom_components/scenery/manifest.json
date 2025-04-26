@@ -1,0 +1,13 @@
+{
+  "domain": "scenery",
+  "name": "Scenery",
+  "codeowners": ["@j9brown"],
+  "config_flow": false,
+  "dependencies": [],
+  "documentation": "https://github.com/j9brown/scenery/",
+  "issue_tracker": "https://github.com/j9brown/scenery/issues",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "requirements": [],
+  "version": "0.1.0"
+}

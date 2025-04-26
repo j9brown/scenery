@@ -1,0 +1,10 @@
+{
+  "services": {
+    "get_favorite_colors": {
+      "service": "mdi:palette"
+    },
+    "set_favorite_colors": {
+      "service": "mdi:palette"
+    }
+  }
+}

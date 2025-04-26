@@ -1,0 +1,24 @@
+get_favorite_colors:
+  fields:
+    entity_id:
+      selector:
+        entity:
+          domain: light
+      required: true
+
+set_favorite_colors:
+  fields:
+    entity_id:
+      selector:
+        entity:
+          domain: light
+      required: true
+    colors:
+      default:
+        - color_temp_kelvin: 4000
+        - hs_color: [300, 70]
+        - rgb_color: [255, 100, 100]
+        - rgbw_color: [255, 100, 100, 50]
+        - rgbww_color: [255, 100, 100, 50, 70]
+      selector:
+        object:

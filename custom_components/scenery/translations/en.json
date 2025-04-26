@@ -1,0 +1,28 @@
+{
+    "services": {
+        "get_favorite_colors": {
+            "name": "Get favorite colors",
+            "description": "Gets the favorite colors of a light or light group.",
+            "fields": {
+                "entity_id": {
+                    "name": "Light",
+                    "description": "The light or light group entity ID."
+                }
+            }
+        },
+        "set_favorite_colors": {
+            "name": "Set favorite colors",
+            "description": "Sets the favorite colors of a light or light group.",
+            "fields": {
+                "entity_id": {
+                    "name": "Light",
+                    "description": "The light or light group entity ID."
+                },
+                "colors": {
+                    "name": "Colors",
+                    "description": "The favorite colors to set."
+                }
+            }
+        }
+    }
+}
