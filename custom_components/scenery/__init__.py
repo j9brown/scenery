@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import contextlib
 from dataclasses import dataclass
 from functools import wraps
 import logging
@@ -26,13 +27,19 @@ from homeassistant.components.light import (
 )
 from homeassistant.const import CONF_ENTITY_ID, CONF_LIGHTS, CONF_NAME
 from homeassistant.core import (
+    Event,
     HomeAssistant,
     ServiceCall,
     ServiceResponse,
     SupportsResponse,
+    callback,
 )
 from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.event import (
+    EventEntityRegistryUpdatedData,
+    async_track_entity_registry_updated_event,
+)
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.json import JsonValueType
 
@@ -206,7 +213,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class LightProfile:
     name: str
     color: Color = None
@@ -234,7 +241,7 @@ class LightProfile:
         )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class LightConfig:
     profiles: list[LightProfile]
     favorite_colors: list[Color]
@@ -248,7 +255,7 @@ class LightConfig:
         return [
             profile.color
             for profile in self.profiles
-            if _is_favorite_color(profile.color)
+            if profile.color is not None and _is_favorite_color(profile.color)
         ]
 
     @staticmethod
@@ -268,6 +275,7 @@ class Scenery:
         self.light_configs = {}
         self._configure(config)
         self._intercept_light_profiles()
+        self._track_registry_unsub = None
 
     def _configure(self, config: ConfigType) -> None:
         for item in config.get(CONF_PROFILES, []):
@@ -315,6 +323,36 @@ class Scenery:
         Profiles.apply_default = _handle_apply_default
         Profiles.apply_profile = _handle_apply_profile
 
+    def async_setup(self) -> None:
+        self._track_registry_unsub = async_track_entity_registry_updated_event(
+            self.hass,
+            self.light_configs.keys(),
+            self._handle_registry_updated_event,
+        )
+        for entity_id in self.light_configs:
+            self._try_set_favorite_colors(entity_id)
+
+    @callback
+    def _handle_registry_updated_event(
+        self, event: Event[EventEntityRegistryUpdatedData]
+    ) -> None:
+        if event.data["action"] == "create":
+            self._try_set_favorite_colors(event.data["entity_id"])
+
+    def _try_set_favorite_colors(self, entity_id: str) -> None:
+        light_config = self.light_configs[entity_id]
+        with contextlib.suppress(EntityNotFound):
+            async_set_favorite_colors(
+                self.hass,
+                entity_id,
+                _deduplicate_colors(
+                    [
+                        *light_config.favorite_colors_from_profiles,
+                        *light_config.favorite_colors,
+                    ]
+                ),
+            )
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the integration."""
@@ -346,18 +384,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=SET_FAVORITE_COLORS_SCHEMA,
     )
 
-    for entity_id, light_config in scenery.light_configs.items():
-        async_set_favorite_colors(
-            hass,
-            entity_id,
-            _deduplicate_colors(
-                [
-                    *light_config.favorite_colors_from_profiles,
-                    *light_config.favorite_colors,
-                ]
-            ),
-        )
-
+    scenery.async_setup()
     return True
 
 
