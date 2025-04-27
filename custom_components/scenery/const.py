@@ -2,4 +2,5 @@
 
 DOMAIN = "scenery"
 
-CONF_COLORS = "colors"
+CONF_FAVORITE_COLORS = "favorite_colors"
+CONF_PROFILES = "profiles"

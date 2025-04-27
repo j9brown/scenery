@@ -13,7 +13,7 @@ set_favorite_colors:
         entity:
           domain: light
       required: true
-    colors:
+    favorite_colors:
       default:
         - color_temp_kelvin: 4000
         - hs_color: [300, 70]
