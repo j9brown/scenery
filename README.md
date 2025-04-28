@@ -1,8 +1,12 @@
-# Scenery for Home Assistant
+# Scenery integration for Home Assistant
 
-Coordinate light profiles and favorite colors centrally.
+Scenery makes it easier to configure profiles and favorite colors for all of your lights in Home Assistant so your lights turn on in your preferred state and the dashboard shows your preferred colors in the more-info dialog.
 
-## YAML Configuration
+  - Define light profiles in YAML to preset the color and brightness of each light and set the default turn-on behavior with more color formats than [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) supports.
+  - Define favorite colors for your lights all in one place in YAML instead of configuring each light's favorite colors one at a time in the more-info dialog.
+  - Make profile select entities to control and observe each light's currently active profile as if it were a stateful scene.  Use select actions to cycle through light profiles at the push of a button.
+
+## Configuration
 
 ### Scenery element
 
@@ -107,7 +111,7 @@ Specifies a favorite color to be shown in a light's more-info dialog.  The front
 
 ### Profile select element
 
-Creates a [select entity](https://www.home-assistant.io/integrations/select/) to select the active profile for a light.
+Creates a [select entity](https://www.home-assistant.io/integrations/select/) to control and observe a light's currently active profile as if it were a stateful scene.
 
 The options of the select entity are the light's profiles (listed in the order in which they appear in the light configuration element) followed by an option to turn the light off.  The off option is labeled "Off" by default.
 
@@ -153,7 +157,7 @@ data:
 
 ### select.*
 
-Use the [select actions](https://www.home-assistant.io/integrations/select/) of a [profile select entity](#profile-select-element) to control and observe a light's currently active profile.
+Use the [select actions](https://www.home-assistant.io/integrations/select/) of a [profile select entity](#profile-select-element) to control and observe a light's currently active profile as if it were a stateful scene.
 
 Tip: You can make a button automation that cycles through light profiles in sequence with the `select.select_next` and `select.select_previous` actions.  Similarly, you can turn the light on to its default profile using `select.select_first` or turn it off with `select.select_last`.
 
@@ -242,3 +246,18 @@ data:
 ```
 
 Tip: You can also set the favorite colors of a light with the [light configuration element](#light-configuration-element).
+
+## Installation
+
+### Manual
+
+1. Clone the repository to your machine and copy the contents of custom_components/ to your config directory.
+2. [Configure the integration](#configuration).
+3. Restart Home Assistant.
+
+### HACS
+
+1. Add the integration through this link:
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=j9brown&repository=scenery&category=integration)
+2. [Configure the integration](#configuration).
+2. Restart Home Assistant.
