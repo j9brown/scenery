@@ -12,20 +12,8 @@ from typing import Any, cast
 import voluptuous as vol
 
 from homeassistant.components.device_automation.exceptions import EntityNotFound
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    ATTR_COLOR_NAME,
-    ATTR_COLOR_TEMP_KELVIN,
-    ATTR_HS_COLOR,
-    ATTR_RGB_COLOR,
-    ATTR_RGBW_COLOR,
-    ATTR_RGBWW_COLOR,
-    ATTR_TRANSITION,
-    ATTR_WHITE,
-    ATTR_XY_COLOR,
-    Profiles,
-)
-from homeassistant.const import CONF_ENTITY_ID, CONF_LIGHTS, CONF_NAME
+from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_TRANSITION, Profiles
+from homeassistant.const import CONF_ENTITY_ID, CONF_LIGHTS, CONF_NAME, Platform
 from homeassistant.core import (
     Event,
     HomeAssistant,
@@ -34,7 +22,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import discovery, entity_registry as er
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
     EventEntityRegistryUpdatedData,
@@ -43,110 +31,27 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.json import JsonValueType
 
-from .const import CONF_FAVORITE_COLORS, CONF_PROFILES, DOMAIN
+from .const import (
+    CONF_FAVORITE_COLORS,
+    CONF_OFF_OPTION,
+    CONF_PROFILE_SELECT,
+    CONF_PROFILES,
+    DOMAIN,
+)
+from .light_utils import (
+    ANY_COLOR_ATTRS,
+    COLOR_SCHEMA,
+    FAVORITE_COLOR_SCHEMA,
+    Color,
+    compare_state_to_brightness,
+    compare_state_to_color,
+    effective_brightness,
+    extract_color,
+    is_favorite_color,
+    unique_colors,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# Color attributes that can be used as favorite colors by the frontend
-FAVORITE_COLOR_ATTRS = (
-    ATTR_COLOR_TEMP_KELVIN,
-    ATTR_HS_COLOR,
-    ATTR_RGB_COLOR,
-    ATTR_RGBW_COLOR,
-    ATTR_RGBWW_COLOR,
-)
-
-# All color attributes that the backend supports
-ANY_COLOR_ATTRS = (
-    *FAVORITE_COLOR_ATTRS,
-    ATTR_XY_COLOR,
-    ATTR_WHITE,
-    ATTR_COLOR_NAME,
-    # _DEPRECATED_ATTR_COLOR_TEMP.value,
-    # _DEPRECATED_ATTR_KELVIN.value,
-)
-
-type Color = Mapping[str, Any]
-
-
-COLOR_GROUP = "color"
-COLOR_SCHEMA = vol.Schema(
-    {
-        vol.Exclusive(ATTR_COLOR_TEMP_KELVIN, COLOR_GROUP): cv.positive_int,
-        vol.Exclusive(ATTR_HS_COLOR, COLOR_GROUP): vol.All(
-            vol.Coerce(tuple),
-            vol.ExactSequence(
-                (
-                    vol.All(vol.Coerce(float), vol.Range(min=0, max=360)),
-                    vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
-                )
-            ),
-        ),
-        vol.Exclusive(ATTR_RGB_COLOR, COLOR_GROUP): vol.All(
-            vol.Coerce(tuple), vol.ExactSequence((cv.byte,) * 3)
-        ),
-        vol.Exclusive(ATTR_RGBW_COLOR, COLOR_GROUP): vol.All(
-            vol.Coerce(tuple), vol.ExactSequence((cv.byte,) * 4)
-        ),
-        vol.Exclusive(ATTR_RGBWW_COLOR, COLOR_GROUP): vol.All(
-            vol.Coerce(tuple), vol.ExactSequence((cv.byte,) * 5)
-        ),
-        vol.Exclusive(ATTR_XY_COLOR, COLOR_GROUP): vol.All(
-            vol.Coerce(tuple), vol.ExactSequence((cv.small_float, cv.small_float))
-        ),
-        vol.Exclusive(ATTR_WHITE, COLOR_GROUP): vol.All(
-            vol.Coerce(int), vol.Clamp(min=0, max=255)
-        ),
-        vol.Exclusive(ATTR_COLOR_NAME, COLOR_GROUP): cv.string,
-    }
-)
-
-
-def _has_one_attr(value: ConfigType, attrs: tuple[str]) -> bool:
-    keys = list(value.keys())
-    return len(keys) == 1 and keys[0] in attrs
-
-
-def _get_color(value: ConfigType) -> Color | None:
-    color = {attr: value[attr] for attr in ANY_COLOR_ATTRS if attr in value}
-    return color if color != {} else None
-
-
-def _is_favorite_color(value: ConfigType) -> bool:
-    return _has_one_attr(value, FAVORITE_COLOR_ATTRS)
-
-
-def _validate_favorite_color(value: ConfigType) -> Color:
-    if not _is_favorite_color(value):
-        raise vol.Invalid(f"Must specify one of {FAVORITE_COLOR_ATTRS}")
-    return value
-
-
-def _deduplicate_colors(colors: list[Color]) -> list[Color]:
-    result = []
-    for color in colors:
-        if color not in result:
-            result.append(color)
-    return result
-
-
-FAVORITE_COLOR_SCHEMA = vol.All(_validate_favorite_color, COLOR_SCHEMA)
-
-
-GET_FAVORITE_COLORS_SERVICE = "get_favorite_colors"
-GET_FAVORITE_COLORS_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ENTITY_ID): cv.entity_id,
-    },
-)
-
-SET_FAVORITE_COLORS_SERVICE = "set_favorite_colors"
-SET_FAVORITE_COLORS_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ENTITY_ID): cv.entity_id,
-        vol.Optional(CONF_FAVORITE_COLORS): [FAVORITE_COLOR_SCHEMA],
-    },
-)
 
 
 def _validate_domain(config: ConfigType) -> ConfigType:
@@ -201,6 +106,14 @@ CONFIG_SCHEMA = vol.Schema(
                                 vol.Optional(CONF_FAVORITE_COLORS): [
                                     FAVORITE_COLOR_SCHEMA
                                 ],
+                                vol.Optional(CONF_PROFILE_SELECT): vol.All(
+                                    vol.DefaultTo({}),
+                                    vol.Schema(
+                                        {
+                                            vol.Optional(CONF_OFF_OPTION): str,
+                                        }
+                                    ),
+                                ),
                             }
                         )
                     ],
@@ -213,12 +126,34 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
+GET_FAVORITE_COLORS_SERVICE = "get_favorite_colors"
+GET_FAVORITE_COLORS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ENTITY_ID): cv.entity_id,
+    },
+)
+
+SET_FAVORITE_COLORS_SERVICE = "set_favorite_colors"
+SET_FAVORITE_COLORS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ENTITY_ID): cv.entity_id,
+        vol.Optional(CONF_FAVORITE_COLORS): [FAVORITE_COLOR_SCHEMA],
+    },
+)
+
+
 @dataclass(kw_only=True)
 class LightProfile:
+    """A named preset that can be applied to a light."""
+
     name: str
     color: Color = None
     brightness: int | None = None
     transition: int | None = None
+
+    @property
+    def effective_brightness(self) -> int | None:
+        return effective_brightness(self.brightness, self.color)
 
     def apply(self, state_on: bool | None, params: dict[str, Any]):
         if self.transition is not None:
@@ -235,16 +170,32 @@ class LightProfile:
     def from_config(config: ConfigType) -> LightProfile:
         return LightProfile(
             name=config[CONF_NAME],
-            color=_get_color(config),
+            color=extract_color(config),
             brightness=config.get(ATTR_BRIGHTNESS),
             transition=config.get(ATTR_TRANSITION),
         )
 
 
 @dataclass(kw_only=True)
+class ProfileSelect:
+    """Configures the profile select entity."""
+
+    off_option: str
+
+    @staticmethod
+    def from_config(config: ConfigType) -> ProfileSelect:
+        return ProfileSelect(
+            off_option=config.get(CONF_OFF_OPTION, "Off"),
+        )
+
+
+@dataclass(kw_only=True)
 class LightConfig:
+    """Configures how this integration will interact with a light."""
+
     profiles: list[LightProfile]
     favorite_colors: list[Color]
+    profile_select: ProfileSelect | None
 
     @property
     def default_profile(self) -> LightProfile | None:
@@ -255,7 +206,7 @@ class LightConfig:
         return [
             profile.color
             for profile in self.profiles
-            if profile.color is not None and _is_favorite_color(profile.color)
+            if profile.color is not None and is_favorite_color(profile.color)
         ]
 
     @staticmethod
@@ -265,10 +216,15 @@ class LightConfig:
         return LightConfig(
             profiles=[profiles[name] for name in config.get(CONF_PROFILES, [])],
             favorite_colors=config.get(CONF_FAVORITE_COLORS, []),
+            profile_select=ProfileSelect.from_config(c)
+            if (c := config.get(CONF_PROFILE_SELECT)) is not None
+            else None,
         )
 
 
 class Scenery:
+    """Integrates with light profiles and favorite colors."""
+
     def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:  # noqa: D107
         self.hass = hass
         self.light_profiles = {}
@@ -323,7 +279,7 @@ class Scenery:
         Profiles.apply_default = _handle_apply_default
         Profiles.apply_profile = _handle_apply_profile
 
-    def async_setup(self) -> None:
+    def async_setup(self) -> None:  # noqa: D102
         self._track_registry_unsub = async_track_entity_registry_updated_event(
             self.hass,
             self.light_configs.keys(),
@@ -345,7 +301,7 @@ class Scenery:
             async_set_favorite_colors(
                 self.hass,
                 entity_id,
-                _deduplicate_colors(
+                unique_colors(
                     [
                         *light_config.favorite_colors_from_profiles,
                         *light_config.favorite_colors,
@@ -385,6 +341,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
 
     scenery.async_setup()
+    discovery.load_platform(hass, Platform.SELECT, DOMAIN, {}, config)
     return True
 
 
@@ -421,3 +378,66 @@ def async_set_favorite_colors(
         options["favorite_colors"] = colors
 
     er.async_get(hass).async_update_entity_options(entity_id, "light", options)
+
+
+async def async_turn_off(
+    hass: HomeAssistant,
+    entity_id: str,
+    blocking: bool = False,
+) -> None:
+    """Turn off a light with the specified profile."""
+    await hass.services.async_call(
+        "light",
+        "turn_off",
+        {
+            "entity_id": entity_id,
+        },
+        blocking=blocking,
+    )
+
+
+async def async_turn_on(
+    hass: HomeAssistant,
+    entity_id: str,
+    profile: str,
+    blocking: bool = False,
+) -> None:
+    """Turn on a light with the specified profile."""
+    await hass.services.async_call(
+        "light",
+        "turn_on",
+        {
+            "entity_id": entity_id,
+            "profile": profile,
+        },
+        blocking=blocking,
+    )
+
+
+def guess_profile(
+    light_attrs: Mapping[str, Any], candidates: list[LightProfile]
+) -> LightProfile | None:
+    """Guess which light profile is active by comparing light attributes."""
+    candidates = [
+        (_rank_profile(light_attrs, profile), profile) for profile in candidates
+    ]
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    _LOGGER.debug("Profile scores: %s", repr(candidates))
+    return candidates[0][1] if candidates and candidates[0][0] > 0 else None
+
+
+def _rank_profile(a: Mapping[str, Any], b: LightProfile) -> int:
+    score = 0
+    # Color is considered an intrinsic part of the light profile.
+    # If specified, then it must match the state.
+    if b.color is not None:
+        if not compare_state_to_color(a, b.color):
+            return 0
+        score += 2
+    # Brightness is considered a more flexible part of the light profile
+    # to allow users to adjust it for their comfort without disrupting the state.
+    # If specified and it matches the state then rank the profile higher.
+    if (b_brightness := b.effective_brightness) is not None:
+        if compare_state_to_brightness(a, b_brightness):
+            score += 1
+    return score

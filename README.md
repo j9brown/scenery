@@ -62,13 +62,14 @@ Each element of the `lights` list defines a light configuration.  A light config
 
 The `light.turn_on` action applies the color, brightness, and transition attributes of the light's default profile by default unless overridden by the action's parameters.  The `light.turn_off` action applies the transition attribute of the light's default profile by default unless overridden by the action's parameters.
 
-This element also configures the favorite colors that are shown in the light's more-info dialog to make it easier for users to pick relevant colors from the color attributes of each profile listed in `profiles` and additional `favorite_colors`.
+Scenery configures the favorite colors that are shown in the light's more-info dialog to make it easier for users to pick relevant colors from the color attributes of each profile listed in `profiles` and additional `favorite_colors`.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
 | entity_id         | no       | A entity ID or a list of entity IDs for the lights to be configured by this element. |
 | profiles          | yes      | A list of light profile names.  The first entry in the list sets the default profile for the specified lights.  If the list of profiles is empty or absent, then the light does not have a default profile. |
 | favorite_colors   | yes      | A list of additional favorite colors to include in the light's more-info dialog. |
+| profile_select    | yes      | When specified, creates a select entity for each light to select the light's active profile. |
 
 ```yaml
   # Define some light profiles
@@ -79,6 +80,7 @@ This element also configures the favorite colors that are shown in the light's m
       profiles: [Warm, Red]
       favorite_colors:
         - ...
+      profile_select:
 ```
 
 ### Favorite colors element
@@ -103,6 +105,29 @@ Specifies a favorite color to be shown in a light's more-info dialog.  The front
     - rgbww_color: [255, 100, 100, 50, 70]
 ```
 
+### Profile select element
+
+Creates a [select entity](https://www.home-assistant.io/integrations/select/) to select the active profile for a light.
+
+The options of the select entity are the light's profiles (listed in the order in which they appear in the light configuration element) followed by an option to turn the light off.  The off option is labeled "Off" by default.
+
+Selecting an option other than off turns the light on with the corresponding profile applied to it.  Selecting the off option turns the light off.
+
+As the state of the light changes, the selected option changes to the profile which most closely matches the new state of the light.  If there is no close match available, then no option is selected.
+
+| Attribute         | Optional | Description |
+| ----------------- | -------- |------------ |
+| off_option        | yes      | The label for the off option. Defaults to "Off". |
+
+```yaml
+  profile_select:
+    off_option: Off
+```
+
+The select entity derives its default entity ID from the entity ID of the light by appending the suffix "_profile".  Similarly, it derives its default name by appending the suffix "Profile".  You can change the entity ID and name in the Home Assistant UI.
+
+For example, the select entity for "light.my_light" whose name is "My Light" is assigned the default entity ID "select.light_my_light" and the default name "My Light Profile".
+
 ## Actions
 
 ### light.turn_on
@@ -125,6 +150,12 @@ data:
   profile: My Profile
   brightness: 40  # Overrides the brightness specified by the profile, if any
 ```
+
+### select.*
+
+Use the [select actions](https://www.home-assistant.io/integrations/select/) of a [profile select entity](#profile-select-element) to control and observe a light's currently active profile.
+
+Tip: You can make a button automation that cycles through light profiles in sequence with the `select.select_next` and `select.select_previous` actions.  Similarly, you can turn the light on to its default profile using `select.select_first` or turn it off with `select.select_last`.
 
 ### scenery.get_favorite_colors
 
@@ -209,3 +240,5 @@ data:
   entity_id: light.my_light
   favorite_colors: []
 ```
+
+Tip: You can also set the favorite colors of a light with the [light configuration element](#light-configuration-element).
