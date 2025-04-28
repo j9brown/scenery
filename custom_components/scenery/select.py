@@ -48,10 +48,11 @@ class SceneryLightProfileSelectEntity(SelectEntity):
             ],
         )
         self._attr_unique_id = (
-            f"scenery-{light_entity_id}-{self.entity_description.key}"
+            f"scenery.{light_entity_id}.{self.entity_description.key}"
         )
         self._attr_current_option = None
         self._attr_should_poll = False
+        self._set_default_name()
 
     async def async_select_option(self, option: str) -> None:  # noqa: D102
         if option == self.off_option:
@@ -83,15 +84,18 @@ class SceneryLightProfileSelectEntity(SelectEntity):
         self._async_update_name()
 
     def _async_update_name(self):
-        base_name = self.light_entity_id
         if (
             light_entity := er.async_get(self.hass).async_get(self.light_entity_id)
         ) is not None and (
             light_name := light_entity.name or light_entity.original_name
         ) is not None:
-            base_name = light_name
-        self._attr_name = f"{base_name} {self.entity_description.name}"
+            self._attr_name = f"{light_name} {self.entity_description.name}"
+        else:
+            self._set_default_name()
         self.async_write_ha_state()
+
+    def _set_default_name(self):
+        self._attr_name = f"{self.light_entity_id} {self.entity_description.name}"
 
     @callback
     def _handle_light_state_change_event(
