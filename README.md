@@ -128,9 +128,9 @@ As the state of the light changes, the selected option changes to the profile wh
     off_option: Off
 ```
 
-The select entity derives its default entity ID from the entity ID of the light by appending the suffix "_profile".  Similarly, it derives its default name by appending the suffix "Profile".  You can change the entity ID and name in the Home Assistant UI.
+The select entity derives its default entity ID from the entity ID of the light by removing the prefix "light." and appending the suffix "_profile".  Similarly, it derives its default name by appending the suffix "Profile".  You can change the entity ID and name in the Home Assistant UI.
 
-For example, the select entity for "light.my_light" whose name is "My Light" is assigned the default entity ID "select.light_my_light" and the default name "My Light Profile".
+For example, the select entity for "light.my_light" whose name is "My Light" is assigned the default entity ID "select.my_light_profile" and the default name "My Light Profile".
 
 ## Actions
 

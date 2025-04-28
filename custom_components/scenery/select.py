@@ -95,7 +95,7 @@ class SceneryLightProfileSelectEntity(SelectEntity):
         self.async_write_ha_state()
 
     def _set_default_name(self):
-        self._attr_name = f"{self.light_entity_id} {self.entity_description.name}"
+        self._attr_name = f"{self.light_entity_id.removeprefix('light.')} {self.entity_description.name}"
 
     @callback
     def _handle_light_state_change_event(
