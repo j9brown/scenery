@@ -8,9 +8,55 @@ Scenery makes it easier to configure profiles and favorite colors for all of you
 
 ## Configuration
 
+### Example
+
+Here's an example that you could add to your `configuration.yaml`.
+
+This example does several things:
+
+- It sets up the Scenery integration.
+- It defines [light profiles](#light-profile-element) with a variety of colors and brightness levels.
+- It configures [lights](#light-configuration-element) with some light profiles.  The first profile in the list determines the light's default turn-on color, brightness, and transition behavior.
+- It replaces the favorite colors offered by the more-info dialog color picker for each light to include the colors of the associated light profiles plus some additional [favorite colors](#favorite-colors-element).
+- It creates a [profile select entity](#profile-select-element) for each light to control and observe which light profile is active.  Try adding the select entity to your dashboard to make it easier to change your lighting ambiance or use it to build [automations](#actions)!
+
+Read the following sections for details.
+
+```yaml
+# Configure the scenery integration
+scenery:
+  profiles:
+    - name: Natural
+      color_temp_kelvin: 4000
+      brightness: 255
+      transition: 0.5
+    - name: Warm
+      color_temp_kelvin: 2800
+      brightness: 128
+      transition: 0.5
+    - name: Violet
+      hs_color: [270, 100]
+      brightness: 60
+      transition: 0.5
+    - name: Red
+      hs_color: [0, 100]
+      brightness: 30
+      transition: 0.5
+  lights:
+    - entity_id:  # Change these entity IDs for your lights
+        - light.hall
+        - light.bedroom
+        - light.kitchen
+      profiles: [Natural, Warm, Violet, Red]
+      profile_select:
+      favorite_colors:
+        - color_temp_kelvin: 6000
+        - hs_color: [60, 70]
+```
+
 ### Scenery element
 
-Add the `scenery` element to your `configuration.yaml` to configure the Scenery integration and enable its services.
+Add the `scenery` element to your `configuration.yaml` to set up the Scenery integration.
 
 | Attribute | Optional | Description |
 | --------- | -------- |------------ |
@@ -128,9 +174,9 @@ As the state of the light changes, the selected option changes to the profile wh
     off_option: Off
 ```
 
-The select entity derives its default entity ID from the entity ID of the light by removing the prefix "light." and appending the suffix "_profile".  Similarly, it derives its default name by appending the suffix "Profile".  You can change the entity ID and name in the Home Assistant UI.
+The select entity derives its default entity ID from the entity ID of the light by removing the prefix `light.` and adding the suffix `_profile`.  Similarly, it derives its default name by appending the suffix *Profile*.  You can change entity's ID and name in the Home Assistant UI.
 
-For example, the select entity for "light.my_light" whose name is "My Light" is assigned the default entity ID "select.my_light_profile" and the default name "My Light Profile".
+For example, the select entity for `light.my_light` whose name is *My Light* is assigned the default entity ID `select.my_light_profile` and the default name *My Light Profile*.
 
 ## Actions
 
