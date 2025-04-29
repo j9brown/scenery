@@ -1,6 +1,6 @@
-# Scenery integration for Home Assistant
+# Scenery: Better light profiles for Home Assistant
 
-Scenery makes it easier to configure profiles and favorite colors for all of your lights in Home Assistant so your lights turn on in your preferred state and the dashboard shows your preferred colors in the more-info dialog.
+Scenery makes it easier to configure light profiles and favorite colors for all of your lights in Home Assistant so your lights turn on in your preferred state and the dashboard shows your preferred colors in the more-info dialog.
 
   - Define light profiles in YAML to preset the color and brightness of each light and set the default turn-on behavior with more color formats than [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) supports.
   - Define favorite colors for your lights all in one place in YAML instead of configuring each light's favorite colors one at a time in the more-info dialog.
