@@ -6,9 +6,9 @@ Scenery makes it easier to configure light profiles and favorite colors for all 
   - Define favorite colors for your lights all in one place in YAML instead of configuring each light's favorite colors one at a time in the more-info dialog.
   - Make profile select entities to control and observe each light's currently active profile as if it were a stateful scene.  Use select actions to cycle through light profiles at the push of a button.
 
-## Configuration
+## Quick start
 
-### Example
+### Configuration example
 
 Here's an example that you could add to your `configuration.yaml`.
 
@@ -20,7 +20,7 @@ This example does several things:
 - It replaces the favorite colors offered by the more-info dialog color picker for each light to include the colors of the associated light profiles plus some additional [favorite colors](#favorite-colors-element).
 - It creates a [profile select entity](#profile-select-element) for each light to control and observe which light profile is active.  Try adding the select entity to your dashboard to make it easier to change your lighting ambiance or use it to build [automations](#actions)!
 
-Read the following sections for details.
+Read the [configuration details](#configuration-details) for more information.
 
 ```yaml
 # Configure the scenery integration
@@ -44,15 +44,87 @@ scenery:
       transition: 0.5
   lights:
     - entity_id:  # Change these entity IDs for your lights
-        - light.hall
         - light.bedroom
         - light.kitchen
+        - light.hall
       profiles: [Natural, Warm, Violet, Red]
       profile_select:
       favorite_colors:
         - color_temp_kelvin: 6000
         - hs_color: [60, 70]
 ```
+
+### Dashboard example
+
+#### Favorite colors in the more-info dialog
+
+The more-info dialog shows your favorite colors from the `profiles` and `favorite_colors` configuration elements.
+
+<img src="assets/more-info-favorite-colors.png" width="587" height="754" alt="The more-info dialog shows your favorite colors">
+
+#### Profile select entities
+
+Use profile select entities in your dashboard to control and observe the active light profile for each of your lights as illustrated here with [tile](https://www.home-assistant.io/dashboards/tile/) cards.
+
+When you select an option from the dropdown, the light changes brightness and color as you defined in the corresponding light profile.  And when you change the light's brightness and color, the selected option changes to the closest matching light profile.  The selected option changes to *Off* when you turn the light off.  And if there is no close match then no option is selected.
+
+You can also use profile select entities for automations!
+
+<img src="assets/profile-select-entities.png" width="526" height="434" alt="Profile select entities">
+
+<details>
+<summary>YAML</summary>
+
+```yaml
+type: grid
+cards:
+  - type: heading
+    heading: Decor
+    heading_style: title
+    icon: mdi:lamps
+  - features:
+      - type: light-brightness
+    type: tile
+    entity: light.bedroom
+    features_position: bottom
+    vertical: false
+    icon: mdi:bed
+  - features:
+      - type: select-options
+    type: tile
+    features_position: bottom
+    vertical: false
+    entity: select.bedroom_profile
+  - features:
+      - type: light-brightness
+    type: tile
+    entity: light.kitchen
+    features_position: bottom
+    vertical: false
+    icon: mdi:countertop
+  - features:
+      - type: select-options
+    type: tile
+    features_position: bottom
+    vertical: false
+    entity: select.kitchen_profile
+  - features:
+      - type: light-brightness
+    type: tile
+    entity: light.hall
+    features_position: bottom
+    vertical: false
+    icon: mdi:dome-light
+  - features:
+      - type: select-options
+    type: tile
+    features_position: bottom
+    vertical: false
+    entity: select.hall_profile
+```
+</details>
+
+## Configuration details
 
 ### Scenery element
 
