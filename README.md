@@ -17,7 +17,7 @@ This example does several things:
 - It sets up the Scenery integration.
 - It defines [light profiles](#light-profile-element) with a variety of colors and brightness levels.
 - It configures [lights](#light-configuration-element) with some light profiles.  The first profile in the list determines the light's default turn-on color, brightness, and transition behavior.
-- It replaces the favorite colors offered by the more-info dialog color picker for each light to include the colors of the associated light profiles plus some additional [favorite colors](#favorite-colors-element).
+- It replaces the favorite colors offered by the more-info dialog color picker for each light to include the colors of the associated light profiles plus some additional [favorite colors](#favorite-colors-element).  **Caution: All previously saved favorite colors for those lights will be deleted!**
 - It creates a [profile select entity](#profile-select-element) for each light to control and observe which light profile is active.  Try adding the select entity to your dashboard to make it easier to change your lighting ambiance or use it to build [automations](#actions)!
 
 Read the [configuration details](#configuration-details) for more information.
@@ -184,7 +184,7 @@ Each element of the `lights` list defines a light configuration.  A light config
 
 The `light.turn_on` action applies the color, brightness, and transition attributes of the light's default profile by default unless overridden by the action's parameters.  The `light.turn_off` action applies the transition attribute of the light's default profile by default unless overridden by the action's parameters.
 
-Scenery configures the favorite colors that are shown in the light's more-info dialog to make it easier for users to pick relevant colors from the color attributes of each profile listed in `profiles` and additional `favorite_colors`.
+Scenery configures the favorite colors that are shown in the light's more-info dialog to make it easier for users to pick relevant colors from the color attributes of each profile listed in `profiles` and additional `favorite_colors`.  **Caution: All previously saved favorite colors for those lights will be deleted!**
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
@@ -207,7 +207,7 @@ Scenery configures the favorite colors that are shown in the light's more-info d
 
 ### Favorite colors element
 
-Specifies a favorite color to be shown in a light's more-info dialog.  The frontend only supports a subset of all color formats as shown below.
+Adds a favorite color to the light's more-info dialog.  The frontend only supports a subset of all color formats as shown below.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
