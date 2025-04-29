@@ -56,12 +56,6 @@ scenery:
 
 ### Dashboard example
 
-#### Favorite colors in the more-info dialog
-
-The more-info dialog shows your favorite colors from the `profiles` and `favorite_colors` configuration elements.
-
-<img src="assets/more-info-favorite-colors.png" width="587" height="754" alt="The more-info dialog shows your favorite colors">
-
 #### Profile select entities
 
 Use profile select entities in your dashboard to control and observe the active light profile for each of your lights as illustrated here with [tile](https://www.home-assistant.io/dashboards/tile/) cards.
@@ -123,6 +117,12 @@ cards:
     entity: select.hall_profile
 ```
 </details>
+
+#### Favorite colors in the more-info dialog
+
+The more-info dialog shows your favorite colors from the `profiles` and `favorite_colors` configuration elements.
+
+<img src="assets/more-info-favorite-colors.png" width="587" height="754" alt="The more-info dialog shows your favorite colors">
 
 ## Configuration details
 
