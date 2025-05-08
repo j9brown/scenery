@@ -44,7 +44,7 @@ class SceneryLightProfileSelectEntity(SelectEntity):
             icon="mdi:palette",
             options=[
                 *[profile.name for profile in light_config.profiles],
-                self.off_option,
+                *([self.off_option] if self.off_option is not None else []),
             ],
         )
         self._attr_unique_id = (

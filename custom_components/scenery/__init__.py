@@ -180,12 +180,14 @@ class LightProfile:
 class ProfileSelect:
     """Configures the profile select entity."""
 
-    off_option: str
+    off_option: str | None
 
     @staticmethod
     def from_config(config: ConfigType) -> ProfileSelect:
         return ProfileSelect(
-            off_option=config.get(CONF_OFF_OPTION, "Off"),
+            off_option=label
+            if (label := config.get(CONF_OFF_OPTION, "Off")) != ""
+            else None,
         )
 
 

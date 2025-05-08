@@ -231,7 +231,7 @@ Adds a favorite color to the light's more-info dialog.  The frontend only suppor
 
 Creates a [select entity](https://www.home-assistant.io/integrations/select/) to control and observe a light's currently active profile as if it were a stateful scene.
 
-The options of the select entity are the light's profiles (listed in the order in which they appear in the light configuration element) followed by an option to turn the light off.  The off option is labeled "Off" by default.
+The options of the select entity are the light's profiles (listed in the order in which they appear in the light configuration element) followed by an option to turn the light off.  The off option is labeled "Off" by default and it can be omitted altogether by setting `off_option` to an empty string.
 
 Selecting an option other than off turns the light on with the corresponding profile applied to it.  Selecting the off option turns the light off.
 
@@ -239,7 +239,7 @@ As the state of the light changes, the selected option changes to the profile wh
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
-| off_option        | yes      | The label for the off option. Defaults to "Off". |
+| off_option        | yes      | The label for the off option. Defaults to "Off". Use an empty string to omit the off option altogether. |
 
 ```yaml
   profile_select:
