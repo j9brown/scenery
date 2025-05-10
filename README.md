@@ -153,16 +153,16 @@ The list of profiles defined here serves a similar purpose to the [light_profile
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
 | name              | no       | The name of the profile. Must be unique. |
-| color_rgb         | yes      | RGB color as a list of 3 integers (red, green, blue) from 0 to 255. |
-| color_rgbw        | yes      | RGBW color as a list of 4 integers (red, green, blue, white) from 0 to 255. |
-| color_rgbww       | yes      | RGBWW color as a list of 5 integers (red, green, blue, cold white, warm white) from 0 to 255. |
-| color_hs          | yes      | HS color as a list of 2 floats (hue, saturation), hue is scaled 0 to 360, saturation is scaled 0 to 100. |
-| color_temp_kelvin | yes      | Color temperature in kelvin as an integer. |
-| color_xy          | yes      | XY color as a list of 2 floats (x, y). This format cannot be represented as a favorite color. |
-| color_white       | yes      | White color as an integer from 0 to 255. This format cannot be represented as a favorite color. |
-| color_name        | yes      | A human-readable string of a color name, such as `blue` or `goldenrod`. All [CSS3 color names](https://www.w3.org/TR/css-color-3/#svg-color) are supported. This format cannot be represented as a favorite color. |
 | brightness        | yes      | The default brightness as an integer from 0 to 255. |
 | transition        | yes      | The default transition duration in seconds as a float. |
+| color_temp_kelvin | yes      | Color temperature in kelvin as an integer. |
+| hs_color          | yes      | HS color as a list of 2 floats (hue, saturation), hue is scaled 0 to 360, saturation is scaled 0 to 100. |
+| rgb_color         | yes      | RGB color as a list of 3 integers (red, green, blue) from 0 to 255. |
+| rgbw_color        | yes      | RGBW color as a list of 4 integers (red, green, blue, white) from 0 to 255. |
+| rgbww_color       | yes      | RGBWW color as a list of 5 integers (red, green, blue, cold white, warm white) from 0 to 255. |
+| xy_color          | yes      | XY color as a list of 2 floats (x, y). This format cannot be represented as a favorite color. |
+| white             | yes      | White color as an integer from 0 to 255. This format cannot be represented as a favorite color. |
+| color_name        | yes      | A human-readable string of a color name, such as `blue` or `goldenrod`. All [CSS3 color names](https://www.w3.org/TR/css-color-3/#svg-color) are supported. This format cannot be represented as a favorite color. |
 
 ```yaml
   # Define some light profiles
@@ -211,11 +211,11 @@ Adds a favorite color to the light's more-info dialog.  The frontend only suppor
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
-| color_rgb         | yes      | RGB color as a list of 3 integers (red, green, blue) from 0 to 255. |
-| color_rgbw        | yes      | RGBW color as a list of 4 integers (red, green, blue, white) from 0 to 255. |
-| color_rgbww       | yes      | RGBWW color as a list of 5 integers (red, green, blue, cold white, warm white) from 0 to 255. |
-| color_hs          | yes      | HS color as a list of 2 floats (hue, saturation), hue is scaled 0 to 360, saturation is scaled 0 to 100. |
 | color_temp_kelvin | yes      | Color temperature in kelvin as an integer. |
+| hs_color          | yes      | HS color as a list of 2 floats (hue, saturation), hue is scaled 0 to 360, saturation is scaled 0 to 100. |
+| rgb_color         | yes      | RGB color as a list of 3 integers (red, green, blue) from 0 to 255. |
+| rgbw_color        | yes      | RGBW color as a list of 4 integers (red, green, blue, white) from 0 to 255. |
+| rgbww_color       | yes      | RGBWW color as a list of 5 integers (red, green, blue, cold white, warm white) from 0 to 255. |
 
 ```yaml
   # A selection of favorite colors
