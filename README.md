@@ -106,7 +106,7 @@ When you select an option from the dropdown, the light changes brightness and co
 
 You can also use profile select entities for automations!
 
-<img src="assets/profile-select-entities.png" width="263" height="217" alt="Profile select entities">
+<img src="https://raw.githubusercontent.com/j9brown/scenery/refs/heads/main/assets/profile-select-entities.png" width="263" height="217" alt="Profile select entities">
 
 <details>
 <summary>YAML</summary>
@@ -168,7 +168,7 @@ In this example, the scene controls two lights and a fog machine.  When you sele
 
 You can also use scene select entities for automations!
 
-<img src="assets/scene-select-entities.png" width="255" height="246" alt="Scene select entities">
+<img src="https://raw.githubusercontent.com/j9brown/scenery/refs/heads/main/assets/scene-select-entities.png" width="255" height="246" alt="Scene select entities">
 
 <details>
 <summary>YAML</summary>
@@ -209,7 +209,7 @@ cards:
 
 The more-info dialog shows your favorite colors from the `profiles` and `favorite_colors` configuration elements.
 
-<img src="assets/more-info-favorite-colors.png" width="294" height="377" alt="The more-info dialog shows your favorite colors">
+<img src="https://raw.githubusercontent.com/j9brown/scenery/refs/heads/main/assets/more-info-favorite-colors.png" width="294" height="377" alt="The more-info dialog shows your favorite colors">
 
 ## Configuration elements
 
