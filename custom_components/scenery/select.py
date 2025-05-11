@@ -22,9 +22,13 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import (
     EventEntityRegistryUpdatedData,
     LightConfig,
+    SceneSelect,
+    Scenery,
+    async_apply_scene,
     async_turn_off,
     async_turn_on,
     guess_profile,
+    guess_scene,
 )
 from .const import DOMAIN
 
@@ -119,6 +123,58 @@ class SceneryLightProfileSelectEntity(SelectEntity):
         self.async_write_ha_state()
 
 
+class ScenerySceneSelectEntity(SelectEntity):
+    """Selects and activates a scene."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, scenery: Scenery, config: SceneSelect) -> None:  # noqa: D107
+        self.scenery = scenery
+        self.config = config
+        self.entity_description = SelectEntityDescription(
+            key="scene",
+            name="Scene",
+            icon="mdi:palette",
+            options=[scene.name for scene in config.scenes],
+        )
+        if config.unique_id is not None:
+            self._attr_unique_id = f"scenery.scene_select.{config.unique_id}"
+        self._attr_current_option = None
+        self._attr_should_poll = False
+        self._attr_name = config.name
+
+    async def async_select_option(self, option: str) -> None:  # noqa: D102
+        scene = self.config.scenes[self.options.index(option)]
+        await async_apply_scene(self.hass, scene)
+
+    async def async_added_to_hass(self) -> None:  # noqa: D102
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, self.config.entities, self._handle_state_change_event
+            )
+        )
+        self._async_update()
+
+    @callback
+    def _handle_state_change_event(self, event: Event[EventStateChangedData]) -> None:
+        self._async_update()
+
+    def _async_update(self) -> None:
+        states = {
+            entity_id: state
+            for entity_id in self.config.entities
+            if (state := self.hass.states.get(entity_id)) is not None
+        }
+        if states:
+            scene = guess_scene(self.scenery, states, self.config.scenes)
+            self._attr_current_option = scene.name if scene is not None else None
+            self._attr_available = True
+        else:
+            self._attr_current_option = None
+            self._attr_available = False
+        self.async_write_ha_state()
+
+
 def setup_platform(  # noqa: D103
     hass: HomeAssistant,
     config: ConfigType,
@@ -131,8 +187,14 @@ def setup_platform(  # noqa: D103
     scenery = hass.data[DOMAIN]
     add_entities(
         [
-            SceneryLightProfileSelectEntity(light_entity_id, light_config)
-            for light_entity_id, light_config in scenery.light_configs.items()
-            if light_config.profile_select is not None
+            *(
+                SceneryLightProfileSelectEntity(light_entity_id, light_config)
+                for light_entity_id, light_config in scenery.light_configs.items()
+                if light_config.profile_select is not None
+            ),
+            *(
+                ScenerySceneSelectEntity(scenery, item)
+                for item in scenery.scene_selects
+            ),
         ]
     )

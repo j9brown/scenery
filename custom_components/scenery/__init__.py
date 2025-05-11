@@ -6,19 +6,34 @@ from collections.abc import Mapping
 import contextlib
 from dataclasses import dataclass
 from functools import wraps
+import itertools
 import logging
 from typing import Any, cast
 
 import voluptuous as vol
 
 from homeassistant.components.device_automation.exceptions import EntityNotFound
-from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_TRANSITION, Profiles
-from homeassistant.const import CONF_ENTITY_ID, CONF_LIGHTS, CONF_NAME, Platform
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_PROFILE,
+    ATTR_TRANSITION,
+    Profiles,
+)
+from homeassistant.const import (
+    CONF_ENTITIES,
+    CONF_ENTITY_ID,
+    CONF_LIGHTS,
+    CONF_NAME,
+    CONF_UNIQUE_ID,
+    Platform,
+    STATE_ON,
+)
 from homeassistant.core import (
     Event,
     HomeAssistant,
     ServiceCall,
     ServiceResponse,
+    State,
     SupportsResponse,
     callback,
 )
@@ -28,14 +43,19 @@ from homeassistant.helpers.event import (
     EventEntityRegistryUpdatedData,
     async_track_entity_registry_updated_event,
 )
+from homeassistant.helpers.state import async_reproduce_state
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.components.homeassistant.scene import STATES_SCHEMA
 from homeassistant.util.json import JsonValueType
+from homeassistant.util.read_only_dict import ReadOnlyDict
 
 from .const import (
     CONF_FAVORITE_COLORS,
     CONF_OFF_OPTION,
     CONF_PROFILE_SELECT,
     CONF_PROFILES,
+    CONF_SCENE_SELECT,
+    CONF_SCENES,
     DOMAIN,
 )
 from .light_utils import (
@@ -52,6 +72,8 @@ from .light_utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+DEBUG_SCORING = False
 
 
 def _validate_domain(config: ConfigType) -> ConfigType:
@@ -88,7 +110,7 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(CONF_PROFILES): [
                         COLOR_SCHEMA.extend(
                             {
-                                vol.Required(CONF_NAME): str,
+                                vol.Required(CONF_NAME): cv.string,
                                 vol.Optional(ATTR_BRIGHTNESS): vol.All(
                                     vol.Coerce(int), vol.Clamp(min=0, max=255)
                                 ),
@@ -102,7 +124,7 @@ CONFIG_SCHEMA = vol.Schema(
                         vol.Schema(
                             {
                                 vol.Required(CONF_ENTITY_ID): cv.entity_ids,
-                                vol.Optional(CONF_PROFILES): [str],
+                                vol.Optional(CONF_PROFILES): [cv.string],
                                 vol.Optional(CONF_FAVORITE_COLORS): [
                                     FAVORITE_COLOR_SCHEMA
                                 ],
@@ -110,10 +132,30 @@ CONFIG_SCHEMA = vol.Schema(
                                     vol.DefaultTo({}),
                                     vol.Schema(
                                         {
-                                            vol.Optional(CONF_OFF_OPTION): str,
+                                            vol.Optional(CONF_OFF_OPTION): cv.string,
                                         }
                                     ),
                                 ),
+                            }
+                        )
+                    ],
+                    vol.Optional(CONF_SCENE_SELECT): [
+                        vol.Schema(
+                            {
+                                vol.Required(CONF_NAME): cv.string,
+                                vol.Optional(CONF_UNIQUE_ID): cv.string,
+                                vol.Required(CONF_SCENES): [
+                                    vol.Schema(
+                                        {
+                                            vol.Required(CONF_NAME): cv.string,
+                                            vol.Required(CONF_ENTITIES): STATES_SCHEMA,
+                                            vol.Optional(ATTR_TRANSITION): vol.All(
+                                                vol.Coerce(float),
+                                                vol.Clamp(min=0, max=6553),
+                                            ),
+                                        }
+                                    )
+                                ],
                             }
                         )
                     ],
@@ -149,16 +191,16 @@ class LightProfile:
     name: str
     color: Color = None
     brightness: int | None = None
-    transition: int | None = None
+    transition: float | None = None
 
     @property
     def effective_brightness(self) -> int | None:
         return effective_brightness(self.brightness, self.color)
 
-    def apply(self, state_on: bool | None, params: dict[str, Any]):
+    def apply(self, params: dict[str, Any], set_color_and_brightness: bool = True):
         if self.transition is not None:
             params.setdefault(ATTR_TRANSITION, self.transition)
-        if not state_on or not params:
+        if set_color_and_brightness:
             if self.brightness is not None:
                 params.setdefault(ATTR_BRIGHTNESS, self.brightness)
             if self.color is not None and not any(
@@ -224,6 +266,68 @@ class LightConfig:
         )
 
 
+ANY_CRITERION_ATTRS = [*ANY_COLOR_ATTRS, ATTR_BRIGHTNESS, ATTR_PROFILE]
+
+
+@dataclass(kw_only=True)
+class Criterion:
+    """A parsed representation of a state that's easier to compare."""
+
+    def __init__(self, state: State) -> None:
+        attrs = state.attributes
+        self.state: str = state.state  # Required
+        self.color: Color | None = extract_color(attrs)
+        self.brightness: int | None = attrs.get(ATTR_BRIGHTNESS)
+        self.profile: str = attrs.get(ATTR_PROFILE)
+        self.attributes: Mapping[str, Any] = {
+            attr: value
+            for attr, value in attrs.items()
+            if attr not in ANY_CRITERION_ATTRS
+        }
+
+
+@dataclass(kw_only=True)
+class Scene:
+    """A named scene that applies states to entities."""
+
+    name: str
+    states: Mapping[str, State]
+    criteria: Mapping[str, Criterion]
+    transition: float | None = None
+
+    @staticmethod
+    def from_config(config: ConfigType) -> Scene:
+        states = config.get(CONF_ENTITIES)
+        return Scene(
+            name=config.get(CONF_NAME),
+            states=states,
+            criteria={
+                entity_id: Criterion(state) for entity_id, state in states.items()
+            },
+            transition=config.get(ATTR_TRANSITION),
+        )
+
+
+@dataclass(kw_only=True)
+class SceneSelect:
+    """Configures the scene select entity."""
+
+    name: str
+    unique_id: str | None
+    scenes: list[Scene]
+    entities: set[str]
+
+    @staticmethod
+    def from_config(config: ConfigType) -> SceneSelect:
+        scenes = [Scene.from_config(item) for item in config.get(CONF_SCENES)]
+        return SceneSelect(
+            name=config.get(CONF_NAME),
+            unique_id=config.get(CONF_UNIQUE_ID),
+            scenes=scenes,
+            entities=set(itertools.chain(*[scene.states.keys() for scene in scenes])),
+        )
+
+
 class Scenery:
     """Integrates with light profiles and favorite colors."""
 
@@ -231,6 +335,7 @@ class Scenery:
         self.hass = hass
         self.light_profiles = {}
         self.light_configs = {}
+        self.scene_selects = []
         self._configure(config)
         self._intercept_light_profiles()
         self._track_registry_unsub = None
@@ -243,6 +348,34 @@ class Scenery:
             light_config = LightConfig.from_config(item, self.light_profiles)
             for entity_id in item[CONF_ENTITY_ID]:
                 self.light_configs[entity_id] = light_config
+        for item in config.get(CONF_SCENE_SELECT, []):
+            scene_select = SceneSelect.from_config(item)
+            for scene in scene_select.scenes:
+                self._apply_profiles_to_scene_states(scene)
+            self.scene_selects.append(scene_select)
+
+    def _apply_profiles_to_scene_states(self, scene: Scene):
+        # Apply the definition of light profiles to the scene's states ahead of time because
+        # the light platform ignores the profile attribute when reproducing a state.
+        for state in scene.states.values():
+            profile_name = state.attributes.get(ATTR_PROFILE)
+            if profile_name is not None:
+                profile = self.light_profiles.get(profile_name)
+                if profile is not None:
+                    new_attributes = {
+                        k: v for k, v in state.attributes.items() if k != ATTR_PROFILE
+                    }
+                    profile.apply(
+                        new_attributes,
+                        set_color_and_brightness=state.state == STATE_ON,
+                    )
+                    state.attributes = ReadOnlyDict(new_attributes)
+                else:
+                    _LOGGER.warning(
+                        "Scene '%s' references undefined light profile '%s'",
+                        scene.name,
+                        profile_name,
+                    )
 
     def _intercept_light_profiles(self) -> None:
         def apply_default(
@@ -251,17 +384,16 @@ class Scenery:
             return (
                 (config := self.light_configs.get(entity_id)) is not None
                 and (profile := config.default_profile) is not None
-                and profile.apply(state_on, params)
+                and profile.apply(params, not state_on or not params)
             )
 
         def apply_light_profile(
             name: str,
-            state_on: bool | None,
             params: dict[str, Any],
         ) -> bool:
             return (
                 profile := self.light_profiles.get(name)
-            ) is not None and profile.apply(state_on, params)
+            ) is not None and profile.apply(params)
 
         _profiles_apply_default = Profiles.apply_default
         _profiles_apply_profile = Profiles.apply_profile
@@ -275,7 +407,7 @@ class Scenery:
 
         @wraps(_profiles_apply_profile)
         def _handle_apply_profile(self, name: str, params: dict[str, Any]) -> None:
-            if not apply_light_profile(name, False, params):
+            if not apply_light_profile(name, params):
                 _profiles_apply_profile(self, name, params)
 
         Profiles.apply_default = _handle_apply_default
@@ -424,22 +556,126 @@ def guess_profile(
         (_rank_profile(light_attrs, profile), profile) for profile in candidates
     ]
     candidates.sort(key=lambda x: x[0], reverse=True)
-    _LOGGER.debug("Profile scores: %s", repr(candidates))
+    if DEBUG_SCORING:
+        _LOGGER.debug("Profile scores: %s", repr(candidates))
     return candidates[0][1] if candidates and candidates[0][0] > 0 else None
 
 
-def _rank_profile(a: Mapping[str, Any], b: LightProfile) -> int:
+def _rank_profile(light_attrs: Mapping[str, Any], profile: LightProfile) -> int:
     score = 0
     # Color is considered an intrinsic part of the light profile.
     # If specified, then it must match the state.
-    if b.color is not None:
-        if not compare_state_to_color(a, b.color):
+    if profile.color is not None:
+        if not compare_state_to_color(light_attrs, profile.color):
             return 0
         score += 2
     # Brightness is considered a more flexible part of the light profile
     # to allow users to adjust it for their comfort without disrupting the state.
     # If specified and it matches the state then rank the profile higher.
-    if (b_brightness := b.effective_brightness) is not None:
-        if compare_state_to_brightness(a, b_brightness):
+    if (profile_brightness := profile.effective_brightness) is not None:
+        if compare_state_to_brightness(light_attrs, profile_brightness):
+            score += 1
+    return score
+
+
+async def async_apply_scene(hass: HomeAssistant, scene: Scene) -> None:
+    """Applies a scene."""
+    reproduce_options = {}
+    if scene.transition is not None:
+        reproduce_options[ATTR_TRANSITION] = scene.transition
+    await async_reproduce_state(
+        hass, scene.states.values(), reproduce_options=reproduce_options
+    )
+
+
+def guess_scene(
+    scenery: Scenery, states: Mapping[str, State], candidates: list[Scene]
+) -> Scene | None:
+    """Guess which scene is active by comparing state attributes."""
+    profiles = {
+        id: profile.name
+        for id, state in states.items()
+        if id in scenery.light_configs
+        and (
+            profile := guess_profile(
+                state.attributes, scenery.light_configs[id].profiles
+            )
+        )
+        is not None
+    }
+    candidates = [(_rank_scene(states, profiles, scene), scene) for scene in candidates]
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    if DEBUG_SCORING:
+        _LOGGER.debug("Scene scores: %s", repr(candidates))
+    return candidates[0][1] if candidates and candidates[0][0] > 0 else None
+
+
+def _rank_scene(
+    states: Mapping[str, Any], profiles: Mapping[str, str], scene: Scene
+) -> int:
+    score = 0
+    for entity_id, criterion in scene.criteria.items():
+        state = states.get(entity_id)
+        if not state:
+            continue  # Ignore the state of unavailable entities
+        if criterion.state != state.state:
+            if DEBUG_SCORING:
+                _LOGGER.debug(
+                    "%s / %s: failed state criterion %s, actual %s",
+                    scene.name,
+                    entity_id,
+                    criterion.state,
+                    state.state,
+                )
+            return 0
+        score += 1
+        if criterion.profile is not None:
+            if profiles.get(entity_id) != criterion.profile:
+                if DEBUG_SCORING:
+                    _LOGGER.debug(
+                        "%s / %s: failed profile criterion %s, actual %s",
+                        scene.name,
+                        entity_id,
+                        criterion.profile,
+                        profiles.get(entity_id),
+                    )
+                return 0
+            score += 1
+        if criterion.color is not None:
+            if not compare_state_to_color(state.attributes, criterion.color):
+                if DEBUG_SCORING:
+                    _LOGGER.debug(
+                        "%s / %s: failed color criterion %s, attributes %s",
+                        scene.name,
+                        entity_id,
+                        repr(criterion.color),
+                        repr(state.attributes),
+                    )
+                return 0
+            score += 1
+        if criterion.brightness is not None:
+            if not compare_state_to_brightness(state.attributes, criterion.brightness):
+                if DEBUG_SCORING:
+                    _LOGGER.debug(
+                        "%s / %s: failed brightness criterion %s, attributes %s",
+                        scene.name,
+                        entity_id,
+                        repr(criterion.brightness),
+                        repr(state.attributes),
+                    )
+                return 0
+            score += 1
+        for key, value in criterion.attributes.items():
+            if value != state.attributes.get(key):
+                if DEBUG_SCORING:
+                    _LOGGER.debug(
+                        "%s / %s: failed key %s criterion %s, value %s",
+                        scene.name,
+                        entity_id,
+                        key,
+                        value,
+                        state.attributes.get(key),
+                    )
+                return 0
             score += 1
     return score
