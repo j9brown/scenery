@@ -22,7 +22,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import (
     EventEntityRegistryUpdatedData,
     LightConfig,
-    SceneSelect,
+    SceneGroup,
     Scenery,
     async_apply_scene,
     async_turn_off,
@@ -128,29 +128,31 @@ class ScenerySceneSelectEntity(SelectEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, scenery: Scenery, config: SceneSelect) -> None:  # noqa: D107
+    def __init__(self, scenery: Scenery, scene_group: SceneGroup) -> None:  # noqa: D107
         self.scenery = scenery
-        self.config = config
+        self.scene_group = scene_group
         self.entity_description = SelectEntityDescription(
             key="scene",
             name="Scene",
             icon="mdi:palette",
-            options=[scene.name for scene in config.scenes],
+            options=[scene.name for scene in scene_group.scenes],
         )
-        if config.unique_id is not None:
-            self._attr_unique_id = f"scenery.scene_select.{config.unique_id}"
+        if scene_group.scene_select.unique_id is not None:
+            self._attr_unique_id = (
+                f"scenery.scene_select.{scene_group.scene_select.unique_id}"
+            )
         self._attr_current_option = None
         self._attr_should_poll = False
-        self._attr_name = config.name
+        self._attr_name = scene_group.name
 
     async def async_select_option(self, option: str) -> None:  # noqa: D102
-        scene = self.config.scenes[self.options.index(option)]
+        scene = self.scene_group.scenes[self.options.index(option)]
         await async_apply_scene(self.hass, scene)
 
     async def async_added_to_hass(self) -> None:  # noqa: D102
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, self.config.entities, self._handle_state_change_event
+                self.hass, self.scene_group.entities, self._handle_state_change_event
             )
         )
         self._async_update()
@@ -162,11 +164,11 @@ class ScenerySceneSelectEntity(SelectEntity):
     def _async_update(self) -> None:
         states = {
             entity_id: state
-            for entity_id in self.config.entities
+            for entity_id in self.scene_group.entities
             if (state := self.hass.states.get(entity_id)) is not None
         }
         if states:
-            scene = guess_scene(self.scenery, states, self.config.scenes)
+            scene = guess_scene(self.scenery, states, self.scene_group.scenes)
             self._attr_current_option = scene.name if scene is not None else None
             self._attr_available = True
         else:
@@ -194,7 +196,8 @@ def setup_platform(  # noqa: D103
             ),
             *(
                 ScenerySceneSelectEntity(scenery, item)
-                for item in scenery.scene_selects
+                for item in scenery.scene_groups
+                if item.scene_select is not None
             ),
         ]
     )

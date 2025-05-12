@@ -9,5 +9,5 @@
   "integration_type": "helper",
   "iot_class": "calculated",
   "requirements": [],
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

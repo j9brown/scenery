@@ -5,7 +5,8 @@ Scenery helps you configure light profiles, favorite colors, and scenes for all 
   - Define light profiles in YAML to preset the color and brightness of each light and set the default turn-on behavior with more color formats than [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) supports.
   - Define favorite colors for your lights all in one place in YAML instead of configuring each light's favorite colors one at a time in the more-info dialog.
   - Make profile select entities to apply light profiles to lights and keep track of which light profiles are active.
-  - Make scene select entities to apply predefined states to lights and other entities and keep track of which scenes are active.
+  - Define scenes to apply predefined states to lights and other entities and organize them into groups.
+  - Make scene select entities to activate scenes and keep track of which scenes are active.
   - Use select actions to cycle through light profiles and scenes at the push of a button.
 
 ## Quick start
@@ -22,11 +23,13 @@ This example does several things:
     - The first profile in the [`profiles` element](#profiles-element) determines the light's default turn-on color, brightness, and transition behavior.
     - The [`profile_select` element](#profile-select-element) creates a select entity for each light with options for each profile in the list including an option to turn the light off.  The currently selected option updates as the state of the light changes.
     - The favorite color picker in each light's more-info dialog is populated with with the colors of each profile in the list and the [`favorite_colors` element](#favorite-colors-element).  **Caution: All previously saved favorite colors for these lights will be deleted!**
-  - The [`scene_select` element](#scene-select-element) defines several scenes to control a few lights in a coordinated manner and creates a select entity to apply a scene.  The currently selected option updates as the state of the entities in the scene changes.
+  - The [`scene_groups` element](#scene-groups-element) defines groups of related scenes to control a few lights in a coordinated manner.
+    - The [`scenes` element](#scenes-element) creates a scene entities and specifies the entity states to be applied when they are activated.
+    - The [`scene_select` element](#scene-select-element) creates a select entity whose options are the names of the scenes in the group.  The currently selected option updates as the state of the entities in the scene changes.
 
 Read the [configuration details](#configuration-details) for more information.
 
-And try adding select entities to your dashboard to make it easier to change your lighting ambiance or use them to build [automations](#actions)!
+And try adding profile select and scene select entities to your dashboard to make it easier to change your lighting ambiance or use them to build [automations](#actions)!
 
 ```yaml
 # Configure the scenery integration
@@ -59,9 +62,10 @@ scenery:
       favorite_colors:
         - color_temp_kelvin: 6000
         - hs_color: [60, 70]
-  scene_select:
+  scene_groups:
     - name: Hearth Scene
-      unique_id: hearth_scene_select
+      scene_select:
+        unique_id: hearth_scene_select
       scenes:
         - name: Daytime
           entities:
@@ -70,6 +74,7 @@ scenery:
               profile: Natural
             light.corner_lamp: off
             switch.fog_machine: off
+          unique_id: hearth_scene_daytime
         - name: Evening
           entities:
             light.kitchen:
@@ -79,6 +84,7 @@ scenery:
               state: on
               brightness: 120
             switch.fog_machine: off
+          unique_id: hearth_scene_evening
         - name: Spooky
           entities:
             light.kitchen:
@@ -89,11 +95,13 @@ scenery:
               state: on
               brightness: 60
             switch.fog_machine: on
+          unique_id: hearth_scene_spooky
         - name: "Off"
           entities:
             light.kitchen: off
             light.corner_lamp: off
             switch.fog_machine: off
+          unique_id: hearth_scene_off
 ```
 
 ### Dashboard example
@@ -221,7 +229,7 @@ Add the `scenery` element to your `configuration.yaml` to set up the Scenery int
 | ------------ | -------- |------------ |
 | [profiles](#profiles-element) | yes      | List of profile elements. |
 | [lights](#lights-element) | yes      | List of light elements. |
-| [scene_select](#scene-select-element) | yes      | List of scene select elements. |
+| [scene_groups](#scene-groups-element) | yes      | List of scene group elements. |
 
 ```yaml
 # Configure the scenery integration
@@ -230,7 +238,7 @@ scenery:
     - ...
   lights:
     - ...
-  scene_select:
+  scene_groups:
     - ...
 ```
 
@@ -293,13 +301,14 @@ Scenery configures the favorite colors that are shown in the light's more-info d
     - entity_id: [light.my_light_2, light.my_light_3]
       profiles: [Warm, Red]
       profile_select:
+        off_label: "Off"
       favorite_colors:
         - ...
 ```
 
 ### Profile select element
 
-The `profile_select` element within a [`lights element`](#lights-element) creates a [select entity](https://www.home-assistant.io/integrations/select/) to control and observe a light's currently active profile.
+The `profile_select` element within a [`lights` element](#lights-element) creates a [select entity](https://www.home-assistant.io/integrations/select/) to control and observe a light's currently active profile.
 
 The options of the profile select entity are the names of the light's profiles (listed in the order in which they appear in the light configuration element) followed by an option to turn the light off.  The off option is labeled "Off" by default and it can be omitted altogether by setting `off_option` to an empty string.
 
@@ -309,7 +318,7 @@ As the state of the light changes, the selected option updates to the profile wh
 
 The select entity derives its default entity ID from the entity ID of the light by removing the prefix `light.` and adding the suffix `_profile`.  Similarly, it derives its default name by appending the suffix *Profile*.  You can change entity's ID and name in the Home Assistant UI.
 
-For example, the select entity for `light.my_light` whose name is *My Light* is assigned the default entity ID `select.my_light_profile` and the default name *My Light Profile*.
+For example, the profile select entity for `light.my_light` whose name is *My Light* is assigned the default entity ID `select.my_light_profile` and the default name *My Light Profile*.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
@@ -343,39 +352,38 @@ Each element of the `favorite_colors` list within a [`lights` element](#lights-e
     - rgbww_color: [255, 100, 100, 50, 70]
 ```
 
-### Scene select element
+### Scene groups element
 
-Each element of the `scene_select` list creates a [select entity](https://www.home-assistant.io/integrations/select/) whose options are scenes that set multiple lights and other entities to a specified state when applied.
+Each element of the `scene_groups` list creates a group of related scenes.  Typically all of the scenes within a scene group operate on the same entities.
 
-A scene select entity is similar to the built-in Home Assistant [scene entity](https://www.home-assistant.io/integrations/scene/).  They both can restore the state of a group of entities and they both use a similar method to define the desired state.  However they differ in two important ways:
-
-  - A scene select entity defines one or more scenes that are considered to be mutually exclusive because they may apply different states to the same entities.
-  - A scene select entity keeps track of the state of the entities that it controls.  As the state of the entities changes, the selected option updates to the scene which most closely matches the new state of the entities. If there is no close match available, then no option is selected. The scene select entity becomes unavailable whenever all of the entities referenced in its scenes are unavailable.
-
-The options of the scene select entity are the names of the scenes defined in the `scenes` attribute.  Selecting an option applies the corresponding scene and it updates as the state of the related entities changes.
-
-Scene select entities are especially useful for coordinating the behavior of several lights or devices in the same room.  And because they keep track of the current state, it's easy to see which scene is active and build automations to cycle through scenes.
+The `name` must be unique among all scene groups.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
-| name              | no       | The name of the scene select entity to create. |
-| unique_id         | yes      | An ID that uniquely identifies this select entity. Set this to a unique value to allow customization through the UI. |
-| [scenes](#scenes-element) | no       | The list of scenes to create and include in this scene select entity's options. |
+| name              | no       | The name of the scene group to create. |
+| [scenes](#scenes-element) | no       | The list of scenes to create within this scene group. |
+| [scene_select](#scene-select-element) | yes      | When specified, creates a select entity whose options are the names of the scenes in the scene group. |
 
 ```yaml
-  # Create scene select entities
-  scene_select:
+  # Declare some scene groups
+  scene_groups:
     - name: Living Room Scene
-      unique_id: living_room_scene_select
+      scene_select:
+        unique_id: living_room_scene
+      scenes:
+        - ...
+    - name: Bedroom Scene
       scenes:
         - ...
 ```
 
 ### Scenes element
 
-Each element of the `scenes` list within a [`scene_select` element](#scene-select-element) creates a scene with a name and a set of states to apply to entities when the scene is selected.
+Each element of the `scenes` list within a [`scene_groups` element](#scene-group-element) creates a [scene entity](https://www.home-assistant.io/docs/scene/) with the provided name and entity states.
 
-The `entities` map uses the same syntax as the built-in [scene integration](https://www.home-assistant.io/integrations/scene/#creating-a-scene).  Each entity in the map specifies the state to apply to an entity.  The key of the entry is an entity ID and its value is the state.  For a simple state, provide a state string, such as "on" or "off".  For a complex state, provide a map of the state and its attributes as shown in the Developer Tools.
+The `name` must be unique among all scenes within the group.
+
+The `entities` map specifies the state to apply to an entity and it uses the same syntax as the built-in [scene integration](https://www.home-assistant.io/integrations/scene/).  The key of each entry is an entity ID and its value is the state.  For a simple state, provide a state string, such as "on" or "off".  For a complex state, provide a map of the state and its attributes as shown in the Developer Tools.
 
 Here are some common state attributes for different types of entities:
 
@@ -383,16 +391,23 @@ Here are some common state attributes for different types of entities:
   - Switches: `state` ("on" or "off")
   - Covers: `state` ("open" or "closed")
 
-*Tip: It's a good idea to ensure that every scene belonging to a scene select entity provides a state for the same set of entities.  That way there's no ambiguity when switching scenes: all of the related entities will have a defined state.*
+Use the `scene.turn_on` action to activate a scene entity.
+
+You can activate scenes within a scene group using a [scene select entity](#scene-select-element).
+
+The scene entity's default name is formed by combining the scene group name and the scene name.  If you specify a `unique_id` then you can change the entity's ID and name in the Home Assistant UI.
+
+*Tip: It's a good idea to ensure that every scene belonging to a scene group provides a state for the same set of entities.  That way there's no ambiguity when switching scenes: all of the related entities will have a defined state.*
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
-| name              | no       | The name of the scene to create and include as an option in the scene select entity. |
+| name              | no       | The name of the scene to create. |
 | entities          | no       | A map of entity IDs and state attributes to apply. |
 | transition        | yes      | The transition duration in seconds as a float. |
+| unique_id         | yes      | An ID that uniquely identifies this scene entity. Set this to a unique value to allow customization through the UI.  |
 
 ```yaml
-  # Declare scenes for a scene select entity
+  # Declare some scenes
   scenes:
     - name: Daylight
       entities:
@@ -405,6 +420,7 @@ Here are some common state attributes for different types of entities:
         light.my_light_3: off
         switch.my_appliance: on
       transition: 0.5
+      unique_id: living_room_scene_daylight
     - name: Evening
       entities:
         light.my_light_1:
@@ -417,13 +433,40 @@ Here are some common state attributes for different types of entities:
           state: on
           hs_color: [300, 70]
         switch.my_appliance: on
+        unique_id: living_room_scene_evening
     - name: Off
       entities:
         light.my_light_1: off
         light.my_light_2: off
         light.my_light_3: off
         switch.my_appliance: off
+      unique_id: living_room_scene_off
     - ...
+```
+
+### Scene select element
+
+The `scene_select` element within a [`scene_groups` element](#scene-groups-element) creates a [select entity](https://www.home-assistant.io/integrations/select/) to control and observe the active scene among the scene group.
+
+The options of the scene select entity are the names of the scenes in the scene group.  Selecting an option activates the corresponding scene.
+
+A scene select entity is similar to the built-in Home Assistant [scene entity](https://www.home-assistant.io/docs/scene/).  They both can restore the state of a set of entities and they both use a similar method to define the desired state.  However they differ in two important ways:
+
+  - A scene select entity defines one or more scenes that are considered to be mutually exclusive because they may apply different states to the same entities.
+  - A scene select entity keeps track of the state of the entities that it controls.  As the state of the entities changes, the selected option updates to the scene which most closely matches the new state of the entities. If there is no close match available, then no option is selected. The scene select entity becomes unavailable whenever all of the entities referenced in its scenes are unavailable.
+
+Scene select entities are especially useful for coordinating the behavior of several lights or devices in the same room.  And because they keep track of the current state, it's easy to see which scene is active and build automations to cycle through scenes.
+
+The select entity's default name is the name of the scene group.  If you specify a `unique_id` then you can change the entity's ID and name in the Home Assistant UI.
+
+| Attribute         | Optional | Description |
+| ----------------- | -------- |------------ |
+| unique_id         | yes      | An ID that uniquely identifies this select entity. Set this to a unique value to allow customization through the UI. |
+
+```yaml
+  # Create a scene select entity whose options are the scenes in the scene group
+  scene_select:
+    unique_id: living_room_scene
 ```
 
 ## Actions
@@ -456,6 +499,16 @@ Use [select actions](https://www.home-assistant.io/integrations/select/) to appl
 *Tip: You can make a button automation that cycles through light profiles of a profile select entity in sequence with the `select.select_next` and `select.select_previous` actions.  Similarly, you can turn the light on to its default profile using `select.select_first` or turn it off with `select.select_last` (if it has an off option).*
 
 *Tip: You can cycle through the scenes of a scene select entity in the same way.*
+
+### scene.turn_on
+
+Use the [`scene.turn_on` action](https://www.home-assistant.io/docs/scene/) to activate a scene entity.
+
+```yaml
+action: scene.turn_on
+data:
+  entity_id: scene.my_scene
+```
 
 ### scenery.get_favorite_colors
 

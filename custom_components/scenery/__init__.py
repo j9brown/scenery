@@ -54,6 +54,7 @@ from .const import (
     CONF_OFF_OPTION,
     CONF_PROFILE_SELECT,
     CONF_PROFILES,
+    CONF_SCENE_GROUPS,
     CONF_SCENE_SELECT,
     CONF_SCENES,
     DOMAIN,
@@ -79,8 +80,7 @@ DEBUG_SCORING = False
 def _validate_domain(config: ConfigType) -> ConfigType:
     profile_names = set()
     for item in config.get(CONF_PROFILES, []):
-        name = item[CONF_NAME]
-        if name in profile_names:
+        if (name := item[CONF_NAME]) in profile_names:
             raise vol.Invalid(
                 f"Profile configuration contains duplicate profile name '{name}'"
             )
@@ -99,6 +99,22 @@ def _validate_domain(config: ConfigType) -> ConfigType:
                 raise vol.Invalid(
                     f"Light configuration contains unknown profile name '{name}'"
                 )
+
+    scene_group_names = set()
+    for scene_group_item in config.get(CONF_SCENE_GROUPS, []):
+        if (scene_group_name := scene_group_item[CONF_NAME]) in scene_group_names:
+            raise vol.Invalid(
+                f"Scene configuration contains duplicate scene group name '{scene_group_name}'"
+            )
+        scene_group_names.add(scene_group_name)
+        scene_names = set()
+        for scene_item in scene_group_item.get(CONF_SCENES, []):
+            if (scene_name := scene_item[CONF_NAME]) in scene_names:
+                raise vol.Invalid(
+                    f"Scene configuration contains duplicate scene '{scene_name}' in scene group '{scene_group_name}'"
+                )
+            scene_names.add(scene_name)
+
     return config
 
 
@@ -139,11 +155,10 @@ CONFIG_SCHEMA = vol.Schema(
                             }
                         )
                     ],
-                    vol.Optional(CONF_SCENE_SELECT): [
+                    vol.Optional(CONF_SCENE_GROUPS): [
                         vol.Schema(
                             {
                                 vol.Required(CONF_NAME): cv.string,
-                                vol.Optional(CONF_UNIQUE_ID): cv.string,
                                 vol.Required(CONF_SCENES): [
                                     vol.Schema(
                                         {
@@ -153,9 +168,18 @@ CONFIG_SCHEMA = vol.Schema(
                                                 vol.Coerce(float),
                                                 vol.Clamp(min=0, max=6553),
                                             ),
+                                            vol.Optional(CONF_UNIQUE_ID): cv.string,
                                         }
                                     )
                                 ],
+                                vol.Optional(CONF_SCENE_SELECT): vol.All(
+                                    vol.DefaultTo({}),
+                                    vol.Schema(
+                                        {
+                                            vol.Optional(CONF_UNIQUE_ID): cv.string,
+                                        }
+                                    ),
+                                ),
                             }
                         )
                     ],
@@ -293,7 +317,8 @@ class Scene:
     name: str
     states: Mapping[str, State]
     criteria: Mapping[str, Criterion]
-    transition: float | None = None
+    transition: float | None
+    unique_id: str | None
 
     @staticmethod
     def from_config(config: ConfigType) -> Scene:
@@ -305,6 +330,7 @@ class Scene:
                 entity_id: Criterion(state) for entity_id, state in states.items()
             },
             transition=config.get(ATTR_TRANSITION),
+            unique_id=config.get(CONF_UNIQUE_ID),
         )
 
 
@@ -312,19 +338,34 @@ class Scene:
 class SceneSelect:
     """Configures the scene select entity."""
 
-    name: str
     unique_id: str | None
-    scenes: list[Scene]
-    entities: set[str]
 
     @staticmethod
     def from_config(config: ConfigType) -> SceneSelect:
-        scenes = [Scene.from_config(item) for item in config.get(CONF_SCENES)]
         return SceneSelect(
-            name=config.get(CONF_NAME),
             unique_id=config.get(CONF_UNIQUE_ID),
+        )
+
+
+@dataclass(kw_only=True)
+class SceneGroup:
+    """Configures the scene group."""
+
+    name: str
+    scenes: list[Scene]
+    entities: set[str]
+    scene_select: SceneSelect | None
+
+    @staticmethod
+    def from_config(config: ConfigType) -> SceneGroup:
+        scenes = [Scene.from_config(item) for item in config.get(CONF_SCENES)]
+        return SceneGroup(
+            name=config.get(CONF_NAME),
             scenes=scenes,
             entities=set(itertools.chain(*[scene.states.keys() for scene in scenes])),
+            scene_select=SceneSelect.from_config(c)
+            if (c := config.get(CONF_SCENE_SELECT)) is not None
+            else None,
         )
 
 
@@ -335,7 +376,7 @@ class Scenery:
         self.hass = hass
         self.light_profiles = {}
         self.light_configs = {}
-        self.scene_selects = []
+        self.scene_groups = []
         self._configure(config)
         self._intercept_light_profiles()
         self._track_registry_unsub = None
@@ -348,11 +389,11 @@ class Scenery:
             light_config = LightConfig.from_config(item, self.light_profiles)
             for entity_id in item[CONF_ENTITY_ID]:
                 self.light_configs[entity_id] = light_config
-        for item in config.get(CONF_SCENE_SELECT, []):
-            scene_select = SceneSelect.from_config(item)
-            for scene in scene_select.scenes:
+        for item in config.get(CONF_SCENE_GROUPS, []):
+            scene_group = SceneGroup.from_config(item)
+            for scene in scene_group.scenes:
                 self._apply_profiles_to_scene_states(scene)
-            self.scene_selects.append(scene_select)
+            self.scene_groups.append(scene_group)
 
     def _apply_profiles_to_scene_states(self, scene: Scene):
         # Apply the definition of light profiles to the scene's states ahead of time because
@@ -475,6 +516,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
 
     scenery.async_setup()
+
+    discovery.load_platform(hass, Platform.SCENE, DOMAIN, {}, config)
     discovery.load_platform(hass, Platform.SELECT, DOMAIN, {}, config)
     return True
 
@@ -578,13 +621,17 @@ def _rank_profile(light_attrs: Mapping[str, Any], profile: LightProfile) -> int:
     return score
 
 
-async def async_apply_scene(hass: HomeAssistant, scene: Scene) -> None:
+async def async_apply_scene(
+    hass: HomeAssistant, scene: Scene, reproduce_options: dict[str, Any] | None = None
+) -> None:
     """Applies a scene."""
-    reproduce_options = {}
+    new_options = {}
     if scene.transition is not None:
-        reproduce_options[ATTR_TRANSITION] = scene.transition
+        new_options[ATTR_TRANSITION] = scene.transition
+    if reproduce_options is not None:
+        new_options.update(reproduce_options)
     await async_reproduce_state(
-        hass, scene.states.values(), reproduce_options=reproduce_options
+        hass, scene.states.values(), reproduce_options=new_options
     )
 
 
