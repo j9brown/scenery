@@ -59,12 +59,14 @@ scenery:
       profiles: [Natural, Warm, Violet, Red]
       profile_select:
         off_option: "Off"
+        icon: mdi:lamp
       favorite_colors:
         - color_temp_kelvin: 6000
         - hs_color: [60, 70]
   scene_groups:
     - name: Hearth Scene
       scene_select:
+        icon: mdi:lamps
         unique_id: hearth_scene_select
       scenes:
         - name: Daytime
@@ -74,6 +76,7 @@ scenery:
               profile: Natural
             light.corner_lamp: off
             switch.fog_machine: off
+          icon: mdi:weather-sunny
           unique_id: hearth_scene_daytime
         - name: Evening
           entities:
@@ -84,6 +87,7 @@ scenery:
               state: on
               brightness: 120
             switch.fog_machine: off
+          icon: mdi:weather-sunset
           unique_id: hearth_scene_evening
         - name: Spooky
           entities:
@@ -95,12 +99,14 @@ scenery:
               state: on
               brightness: 60
             switch.fog_machine: on
+          icon: mdi:halloween
           unique_id: hearth_scene_spooky
         - name: "Off"
           entities:
             light.kitchen: off
             light.corner_lamp: off
             switch.fog_machine: off
+          icon: mdi:weather-night
           unique_id: hearth_scene_off
 ```
 
@@ -139,6 +145,7 @@ cards:
     features_position: bottom
     vertical: false
     entity: select.bedroom_profile
+    hide_state: true
   - features:
       - type: light-brightness
     type: tile
@@ -152,6 +159,7 @@ cards:
     features_position: bottom
     vertical: false
     entity: select.kitchen_profile
+    hide_state: true
   - features:
       - type: light-brightness
     type: tile
@@ -165,6 +173,7 @@ cards:
     features_position: bottom
     vertical: false
     entity: select.hall_profile
+    hide_state: true
 ```
 </details>
 
@@ -204,12 +213,49 @@ cards:
     heading: Scenes
     heading_style: title
     icon: mdi:palette
-  - type: tile
+  - show_name: true
+    show_icon: true
+    type: button
+    grid_options:
+      columns: 3
+      rows: 1
+    entity: scene.hearth_scene_daytime
+    tap_action:
+      action: toggle
+  - show_name: true
+    show_icon: true
+    type: button
+    grid_options:
+      columns: 3
+      rows: 1
+    entity: scene.hearth_scene_evening
+    tap_action:
+      action: toggle
+  - show_name: true
+    show_icon: true
+    type: button
+    grid_options:
+      columns: 3
+      rows: 1
+    entity: scene.hearth_scene_spooky
+    tap_action:
+      action: toggle
+  - show_name: true
+    show_icon: true
+    type: button
+    grid_options:
+      columns: 3
+      rows: 1
+    entity: scene.hearth_scene_off
+    tap_action:
+      action: toggle
+  - features:
+      - type: select-options
+    type: tile
     features_position: inline
     vertical: false
     entity: select.hearth_scene
-    features:
-      - type: select-options
+    hide_state: true
 ```
 </details>
 
@@ -322,12 +368,14 @@ For example, the profile select entity for `light.my_light` whose name is *My Li
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
-| off_option        | yes      | The label for the off option. Defaults to "Off". Use an empty string to omit the off option altogether. |
+| off_option        | yes      | The label for the off option. Defaults to "Off". Use "" (an empty string) to omit the off option altogether. |
+| icon              | yes      | The icon for the profile select entity. Defaults to "mdi:palette". |
 
 ```yaml
   # Create a profile select entity for each light in this light element
   profile_select:
     off_option: Off
+    icon: mdi:lamp
 ```
 
 ### Favorite colors element
@@ -404,6 +452,7 @@ The scene entity's default name is formed by combining the scene group name and 
 | name              | no       | The name of the scene to create. |
 | entities          | no       | A map of entity IDs and state attributes to apply. |
 | transition        | yes      | The transition duration in seconds as a float. |
+| icon              | yes      | The icon for the scene entity. Defaults to "mdi:palette". |
 | unique_id         | yes      | An ID that uniquely identifies this scene entity. Set this to a unique value to allow customization through the UI.  |
 
 ```yaml
@@ -420,6 +469,7 @@ The scene entity's default name is formed by combining the scene group name and 
         light.my_light_3: off
         switch.my_appliance: on
       transition: 0.5
+      icon: mdi:weather-sunny
       unique_id: living_room_scene_daylight
     - name: Evening
       entities:
@@ -433,6 +483,7 @@ The scene entity's default name is formed by combining the scene group name and 
           state: on
           hs_color: [300, 70]
         switch.my_appliance: on
+      icon: mdi:weather-sunset
         unique_id: living_room_scene_evening
     - name: Off
       entities:
@@ -440,6 +491,7 @@ The scene entity's default name is formed by combining the scene group name and 
         light.my_light_2: off
         light.my_light_3: off
         switch.my_appliance: off
+      icon: mdi:weather-night
       unique_id: living_room_scene_off
     - ...
 ```
@@ -461,11 +513,13 @@ The select entity's default name is the name of the scene group.  If you specify
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
+| icon              | yes      | The icon for the scene select entity. Defaults to "mdi:palette". |
 | unique_id         | yes      | An ID that uniquely identifies this select entity. Set this to a unique value to allow customization through the UI. |
 
 ```yaml
   # Create a scene select entity whose options are the scenes in the scene group
   scene_select:
+    icon: mdi:lamps
     unique_id: living_room_scene
 ```
 

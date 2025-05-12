@@ -45,7 +45,9 @@ class SceneryLightProfileSelectEntity(SelectEntity):
         self.entity_description = SelectEntityDescription(
             key="profile",
             name="Profile",
-            icon="mdi:palette",
+            icon=icon
+            if (icon := light_config.profile_select.icon) is not None
+            else "mdi:palette",
             options=[
                 *[profile.name for profile in light_config.profiles],
                 *([self.off_option] if self.off_option is not None else []),
@@ -134,7 +136,9 @@ class ScenerySceneSelectEntity(SelectEntity):
         self.entity_description = SelectEntityDescription(
             key="scene",
             name="Scene",
-            icon="mdi:palette",
+            icon=icon
+            if (icon := scene_group.scene_select.icon) is not None
+            else "mdi:palette",
             options=[scene.name for scene in scene_group.scenes],
         )
         if scene_group.scene_select.unique_id is not None:

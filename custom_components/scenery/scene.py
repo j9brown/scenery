@@ -26,6 +26,7 @@ class SceneryScene(HassScene):
     def __init__(self, scene_group: SceneGroup, scene: Scene) -> None:  # noqa: D107
         self.scene = scene
         self._attr_name = f"{scene_group.name} {scene.name}"
+        self._attr_icon = icon if (icon := scene.icon) is not None else "mdi:palette"
         if scene.unique_id is not None:
             self._attr_unique_id = f"scenery.scene.{scene.unique_id}"
 

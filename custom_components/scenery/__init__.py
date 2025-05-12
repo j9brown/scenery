@@ -22,6 +22,7 @@ from homeassistant.components.light import (
 from homeassistant.const import (
     CONF_ENTITIES,
     CONF_ENTITY_ID,
+    CONF_ICON,
     CONF_LIGHTS,
     CONF_NAME,
     CONF_UNIQUE_ID,
@@ -149,6 +150,7 @@ CONFIG_SCHEMA = vol.Schema(
                                     vol.Schema(
                                         {
                                             vol.Optional(CONF_OFF_OPTION): cv.string,
+                                            vol.Optional(CONF_ICON): cv.icon,
                                         }
                                     ),
                                 ),
@@ -168,6 +170,7 @@ CONFIG_SCHEMA = vol.Schema(
                                                 vol.Coerce(float),
                                                 vol.Clamp(min=0, max=6553),
                                             ),
+                                            vol.Optional(CONF_ICON): cv.icon,
                                             vol.Optional(CONF_UNIQUE_ID): cv.string,
                                         }
                                     )
@@ -176,6 +179,7 @@ CONFIG_SCHEMA = vol.Schema(
                                     vol.DefaultTo({}),
                                     vol.Schema(
                                         {
+                                            vol.Optional(CONF_ICON): cv.icon,
                                             vol.Optional(CONF_UNIQUE_ID): cv.string,
                                         }
                                     ),
@@ -247,6 +251,7 @@ class ProfileSelect:
     """Configures the profile select entity."""
 
     off_option: str | None
+    icon: str | None
 
     @staticmethod
     def from_config(config: ConfigType) -> ProfileSelect:
@@ -254,6 +259,7 @@ class ProfileSelect:
             off_option=label
             if (label := config.get(CONF_OFF_OPTION, "Off")) != ""
             else None,
+            icon=config.get(CONF_ICON),
         )
 
 
@@ -318,6 +324,7 @@ class Scene:
     states: Mapping[str, State]
     criteria: Mapping[str, Criterion]
     transition: float | None
+    icon: str | None
     unique_id: str | None
 
     @staticmethod
@@ -330,6 +337,7 @@ class Scene:
                 entity_id: Criterion(state) for entity_id, state in states.items()
             },
             transition=config.get(ATTR_TRANSITION),
+            icon=config.get(CONF_ICON),
             unique_id=config.get(CONF_UNIQUE_ID),
         )
 
@@ -338,11 +346,13 @@ class Scene:
 class SceneSelect:
     """Configures the scene select entity."""
 
+    icon: str | None
     unique_id: str | None
 
     @staticmethod
     def from_config(config: ConfigType) -> SceneSelect:
         return SceneSelect(
+            icon=config.get(CONF_ICON),
             unique_id=config.get(CONF_UNIQUE_ID),
         )
 
