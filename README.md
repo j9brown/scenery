@@ -27,7 +27,7 @@ This example does several things:
     - The [`scenes` element](#scenes-element) creates a scene entities and specifies the entity states to be applied when they are activated.
     - The [`scene_select` element](#scene-select-element) creates a select entity whose options are the names of the scenes in the group.  The currently selected option updates as the state of the entities in the scene changes.
 
-Read the [configuration details](#configuration-details) for more information.
+Read the [configuration elements section](#configuration-elements) for more information.
 
 And try adding profile select and scene select entities to your dashboard to make it easier to change your lighting ambiance or use them to build [automations](#actions)!
 
@@ -439,9 +439,7 @@ Here are some common state attributes for different types of entities:
   - Switches: `state` ("on" or "off")
   - Covers: `state` ("open" or "closed")
 
-Use the `scene.turn_on` action to activate a scene entity.
-
-You can activate scenes within a scene group using a [scene select entity](#scene-select-element).
+Use the `scene.turn_on` action to activate a scene entity.  You can also activate scenes within a scene group using a [scene select entity](#scene-select-element).
 
 The scene entity's default name is formed by combining the scene group name and the scene name.  If you specify a `unique_id` then you can change the entity's ID and name in the Home Assistant UI.
 
