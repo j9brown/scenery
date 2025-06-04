@@ -5,9 +5,9 @@
   "config_flow": false,
   "dependencies": ["light"],
   "documentation": "https://github.com/j9brown/scenery/",
-  "issue_tracker": "https://github.com/j9brown/scenery/issues",
   "integration_type": "helper",
   "iot_class": "calculated",
+  "issue_tracker": "https://github.com/j9brown/scenery/issues",
   "requirements": [],
   "version": "0.4.0"
 }
