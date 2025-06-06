@@ -1,3 +1,5 @@
+![Scenery icon](assets/brand/icon.png)
+
 # Scenery: Better light profiles, favorite colors, and scenes for Home Assistant
 
 Scenery helps you configure light profiles, favorite colors, and scenes for all of your lights in Home Assistant.
@@ -362,7 +364,7 @@ Selecting an option other than off turns the light on with the corresponding pro
 
 As the state of the light changes, the selected option updates to the profile which most closely matches the new state of the light.  If there is no close match available, then no option is selected.  The profile select entity becomes unavailable whenever its light entity is unavailable.
 
-The select entity derives its default entity ID from the entity ID of the light by removing the prefix `light.` and adding the suffix `_profile`.  Similarly, it derives its default name by appending the suffix *Profile*.  You can change entity's ID and name in the Home Assistant UI.
+The select entity derives its default entity ID from the entity ID of the light by removing the prefix `light.` and adding the suffix `_profile`.  Similarly, it derives its default name by appending the suffix *Profile*.  You can change the entity's ID and name in the Home Assistant UI.
 
 For example, the profile select entity for `light.my_light` whose name is *My Light* is assigned the default entity ID `select.my_light_profile` and the default name *My Light Profile*.
 
@@ -427,7 +429,7 @@ The `name` must be unique among all scene groups.
 
 ### Scenes element
 
-Each element of the `scenes` list within a [`scene_groups` element](#scene-group-element) creates a [scene entity](https://www.home-assistant.io/docs/scene/) with the provided name and entity states.
+Each element of the `scenes` list within a [`scene_groups` element](#scene-groups-element) creates a [scene entity](https://www.home-assistant.io/docs/scene/) with the provided name and entity states.
 
 The `name` must be unique among all scenes within the group.
 
@@ -637,7 +639,7 @@ data:
   entity_id: light.my_light
 ```
 
-Setting the `favorite_colors` attribute to an empty list removes all of the favorite colors.  In this case, the front-end will not show any favorite colors in the more-info dialog; it will not generate default colors as in the previous case.
+Setting the `favorite_colors` attribute to an empty list removes all of the favorite colors.  In this case, the front-end will not show any favorite colors in the more-info dialog and it will not generate default colors unlike in the previous example.
 
 ```yaml
 action: scenery.set_favorite_colors
@@ -662,3 +664,7 @@ Tip: You can also set the favorite colors of a light with the [light configurati
    [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=j9brown&repository=scenery&category=integration)
 2. [Configure the integration](#configuration).
 2. Restart Home Assistant.
+
+## Acknowledgments
+
+Thanks to [SmartyVan](https://github.com/SmartyVan) for designing the lovely [Scenery icon](assets/brand/icon.png)!
