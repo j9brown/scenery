@@ -2,6 +2,8 @@
 
 # Scenery: Better light profiles, favorite colors, and scenes for Home Assistant
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+
 Scenery helps you configure light profiles, favorite colors, and scenes for all of your lights in Home Assistant.
 
   - Define light profiles in YAML to preset the color and brightness of each light and set the default turn-on behavior with more color formats than [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) supports.
@@ -655,14 +657,14 @@ Tip: You can also set the favorite colors of a light with the [light configurati
 ### Manual
 
 1. Clone the repository to your machine and copy the contents of custom_components/ to your config directory.
-2. [Configure the integration](#configuration).
+2. [Configure the integration](#quick-start).
 3. Restart Home Assistant.
 
 ### HACS
 
 1. Add the integration through this link:
    [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=j9brown&repository=scenery&category=integration)
-2. [Configure the integration](#configuration).
+2. [Configure the integration](#quick-start).
 2. Restart Home Assistant.
 
 ## Acknowledgments
