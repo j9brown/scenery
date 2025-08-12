@@ -667,6 +667,14 @@ Tip: You can also set the favorite colors of a light with the [light configurati
 2. [Configure the integration](#quick-start).
 2. Restart Home Assistant.
 
+## Blueprints
+
+Scenery includes some helpful [Blueprints](https://www.home-assistant.io/docs/blueprint/) for controlling your lights.
+
+| Blueprint | Description | Import |
+| --------- | ----------- | ------ |
+| [Tap Dial Light Controller](blueprints/automation/tap_dial_light_controller.yaml) | Associates a Philips Hue Tap Dial controller with a light (or a light group).  Press a button to turn on the light and apply a light profile or to turn off the light.  Hold a button run a script.  Turn the dial to change the light's brightness. | [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A//github.com/j9brown/scenery/blob/main/blueprints/automation/tap_dial_light_controller.yaml)
+
 ## Acknowledgments
 
 Thanks to [SmartyVan](https://github.com/SmartyVan) for designing the lovely [Scenery icon](assets/brand/icon.png)!

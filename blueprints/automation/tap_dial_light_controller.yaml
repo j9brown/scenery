@@ -1,0 +1,400 @@
+blueprint:
+  name: Tap Dial Light Controller
+  description: >
+    Associates a Philips Hue Tap Dial controller with a light (or a light group).
+
+      - Single/double/triple/quadruple/quintuple click button 1, 2, or 3 to turn on the light and apply a light profile.
+
+      - Click button 4 to turn off the light.
+
+      - Hold button 1, 2, 3, or 4 to run a script.
+
+      - Turn the dial to change the brightness of the light.
+
+    ---
+
+    Suggested configuration:
+
+      - Set light profiles for scenes that you use at different times of the day or for various tasks.
+      For example, press button 1 for bright natural white, button 2 for relaxing warm white, button 3 for dim soothing colors.
+
+      - Set scripts to control several lights in the same area following a similar pattern to the light profiles so it's easy to
+      remember what they do.  For example, hold button 1 to make all lights bright natural white, hold button 4 to turn all lights off.
+
+    ---
+
+    Requires the [ZHA](https://www.home-assistant.io/integrations/zha/) integration to receive events from the controller.
+
+    Recommend using the [Scenery](https://github.com/j9brown/scenery/) integration to configure light profiles centrally.
+  domain: automation
+  input:
+    controller_device_id:
+      name: Controller
+      selector:
+        device:
+          filter:
+            integration: zha
+            model: RDM002
+    light_entity_id:
+      name: Light
+      selector:
+        entity:
+          filter:
+            domain: light
+    scenes:
+      name: "Light profiles"
+      icon: mdi:lamp
+      input:
+        scene_1a_light_profile:
+          name: "Button 1 single click"
+          selector:
+            text:
+          default: ""
+        scene_1b_light_profile:
+          name: "Button 1 double click"
+          selector:
+            text:
+          default: ""
+        scene_1c_light_profile:
+          name: "Button 1 triple click"
+          selector:
+            text:
+          default: ""
+        scene_1d_light_profile:
+          name: "Button 1 quadruple click"
+          selector:
+            text:
+          default: ""
+        scene_1e_light_profile:
+          name: "Button 1 quintuple click"
+          selector:
+            text:
+          default: ""
+        scene_2a_light_profile:
+          name: "Button 2 single click"
+          selector:
+            text:
+          default: ""
+        scene_2b_light_profile:
+          name: "Button 2 double click"
+          selector:
+            text:
+          default: ""
+        scene_2c_light_profile:
+          name: "Button 2 triple click"
+          selector:
+            text:
+          default: ""
+        scene_2d_light_profile:
+          name: "Button 2 quadruple click"
+          selector:
+            text:
+          default: ""
+        scene_2e_light_profile:
+          name: "Button 2 quintuple click"
+          selector:
+            text:
+          default: ""
+        scene_3a_light_profile:
+          name: "Button 3 single click"
+          selector:
+            text:
+          default: ""
+        scene_3b_light_profile:
+          name: "Button 3 double click"
+          selector:
+            text:
+          default: ""
+        scene_3c_light_profile:
+          name: "Button 3 triple click"
+          selector:
+            text:
+          default: ""
+        scene_3d_light_profile:
+          name: "Button 3 quadruple click"
+          selector:
+            text:
+          default: ""
+        scene_3e_light_profile:
+          name: "Button 3 quintuple click"
+          selector:
+            text:
+          default: ""
+    scripts:
+      name: "Scripts"
+      icon: mdi:script
+      input:
+        script_1_entity_id:
+          name: "Button 1 hold"
+          selector:
+            entity:
+              filter:
+                domain: script
+          default: ""
+        script_2_entity_id:
+          name: "Button 2 hold"
+          selector:
+            entity:
+              filter:
+                domain: script
+          default: ""
+        script_3_entity_id:
+          name: "Button 3 hold"
+          selector:
+            entity:
+              filter:
+                domain: script
+          default: ""
+        script_4_entity_id:
+          name: "Button 4 hold"
+          selector:
+            entity:
+              filter:
+                domain: script
+          default: ""
+    dimming:
+      name: "Dimming"
+      icon: mdi:lightbulb-on-50
+      input:
+        dim_min_brightness:
+          name: "Minimum brightness"
+          selector:
+            number:
+              min: 1
+              max: 255
+          default: 1
+triggers:
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_release
+    subtype: button_1
+    trigger: device
+    id: scene_1a
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_double_press
+    subtype: button_1
+    trigger: device
+    id: scene_1b
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_triple_press
+    subtype: button_1
+    trigger: device
+    id: scene_1c
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quadruple_press
+    subtype: button_1
+    trigger: device
+    id: scene_1d
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quintuple_press
+    subtype: button_1
+    trigger: device
+    id: scene_1e
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_long_press
+    subtype: button_1
+    trigger: device
+    id: script_1
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_release
+    subtype: button_2
+    trigger: device
+    id: scene_2a
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_double_press
+    subtype: button_2
+    trigger: device
+    id: scene_2b
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_triple_press
+    subtype: button_2
+    trigger: device
+    id: scene_2c
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quadruple_press
+    subtype: button_2
+    trigger: device
+    id: scene_2d
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quintuple_press
+    subtype: button_2
+    trigger: device
+    id: scene_2e
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_long_press
+    subtype: button_2
+    trigger: device
+    id: script_2
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_release
+    subtype: button_3
+    trigger: device
+    id: scene_3a
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_double_press
+    subtype: button_3
+    trigger: device
+    id: scene_3b
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_triple_press
+    subtype: button_3
+    trigger: device
+    id: scene_3c
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quadruple_press
+    subtype: button_3
+    trigger: device
+    id: scene_3d
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_quintuple_press
+    subtype: button_3
+    trigger: device
+    id: scene_3e
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_long_press
+    subtype: button_3
+    trigger: device
+    id: script_3
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_release
+    subtype: button_4
+    trigger: device
+    id: "off"
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_long_press
+    subtype: button_4
+    trigger: device
+    id: script_4
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_press
+    subtype: dim_up
+    trigger: device
+    id: dim_up
+    variables:
+      dim_step: "{{ trigger.event.data.params['step_size'] }}"
+      dim_transition: "{{ trigger.event.data.params['transition_time'] }}"
+  - device_id: !input controller_device_id
+    domain: zha
+    type: remote_button_short_press
+    subtype: dim_down
+    trigger: device
+    id: dim_down
+    variables:
+      dim_step: "{{ -trigger.event.data.params['step_size'] }}"
+      dim_transition: "{{ trigger.event.data.params['transition_time'] }}"
+conditions: []
+actions:
+  - variables:
+      light_entity_id: !input light_entity_id
+      light_profiles:
+        scene_1a: !input scene_1a_light_profile
+        scene_1b: !input scene_1b_light_profile
+        scene_1c: !input scene_1c_light_profile
+        scene_1d: !input scene_1d_light_profile
+        scene_1e: !input scene_1e_light_profile
+        scene_2a: !input scene_2a_light_profile
+        scene_2b: !input scene_2b_light_profile
+        scene_2c: !input scene_2c_light_profile
+        scene_2d: !input scene_2d_light_profile
+        scene_2e: !input scene_2e_light_profile
+        scene_3a: !input scene_3a_light_profile
+        scene_3b: !input scene_3b_light_profile
+        scene_3c: !input scene_3c_light_profile
+        scene_3d: !input scene_3d_light_profile
+        scene_3e: !input scene_3e_light_profile
+      scripts:
+        script_1: !input script_1_entity_id
+        script_2: !input script_2_entity_id
+        script_3: !input script_3_entity_id
+        script_4: !input script_4_entity_id
+      dim_min_brightness: !input dim_min_brightness
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - scene_1a
+              - scene_1b
+              - scene_1c
+              - scene_1d
+              - scene_1e
+              - scene_2a
+              - scene_2b
+              - scene_2c
+              - scene_2d
+              - scene_2e
+              - scene_3a
+              - scene_3b
+              - scene_3c
+              - scene_3d
+              - scene_3e
+          - condition: template
+            value_template: "{{ light_profiles[trigger.id] != '' }}"
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            target:
+              entity_id: "{{ light_entity_id }}"
+            data:
+              profile: "{{ light_profiles[trigger.id] }}"
+      - conditions:
+          - condition: trigger
+            id:
+              - "off"
+        sequence:
+          - action: light.turn_off
+            metadata: {}
+            target:
+              entity_id: "{{ light_entity_id }}"
+            data: {}
+      - conditions:
+          - condition: trigger
+            id:
+              - dim_up
+              - dim_down
+          - condition: template
+            value_template: "{{ is_state(light_entity_id, 'on') }}"
+        sequence:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness: >-
+                {{ min(max(state_attr(light_entity_id, 'brightness') | float(0)
+                + dim_step / 2, dim_min_brightness), 255) }}
+              transition: "{{ dim_transition * 0.2 }}"
+            target:
+              entity_id: "{{ light_entity_id }}"
+      - conditions:
+          - condition: trigger
+            id:
+              - script_1
+              - script_2
+              - script_3
+              - script_4
+          - condition: template
+            value_template: "{{ scripts[trigger.id] != '' }}"
+        sequence:
+          - action: "{{ scripts[trigger.id] }}"
+            metadata: {}
+            data: {}
+mode: queued
+max: 10
