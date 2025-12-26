@@ -7,7 +7,7 @@ blueprint:
 
       - Click button 4 to turn off the light.
 
-      - Hold button 1, 2, 3, or 4 to run a script.
+      - Hold button 1, 2, 3, or 4 to run a sequence of actions.
 
       - Turn the dial to change the brightness of the light.
 
@@ -18,7 +18,7 @@ blueprint:
       - Set light profiles for scenes that you use at different times of the day or for various tasks.
       For example, press button 1 for bright natural white, button 2 for relaxing warm white, button 3 for dim soothing colors.
 
-      - Set scripts to control several lights in the same area following a similar pattern to the light profiles so it's easy to
+      - Set actions to control several lights in the same area following a similar pattern to the light profiles so it's easy to
       remember what they do.  For example, hold button 1 to make all lights bright natural white, hold button 4 to turn all lights off.
 
     ---
@@ -120,38 +120,30 @@ blueprint:
           selector:
             text:
           default: ""
-    scripts:
-      name: "Scripts"
+    actions:
+      name: "Actions"
       icon: mdi:script
       input:
-        script_1_entity_id:
+        action_1:
           name: "Button 1 hold"
           selector:
-            entity:
-              filter:
-                domain: script
-          default: ""
-        script_2_entity_id:
+            action:
+          default: []
+        action_2:
           name: "Button 2 hold"
           selector:
-            entity:
-              filter:
-                domain: script
-          default: ""
-        script_3_entity_id:
+            action:
+          default: []
+        action_3:
           name: "Button 3 hold"
           selector:
-            entity:
-              filter:
-                domain: script
-          default: ""
-        script_4_entity_id:
+            action:
+          default: []
+        action_4:
           name: "Button 4 hold"
           selector:
-            entity:
-              filter:
-                domain: script
-          default: ""
+            action:
+          default: []
     dimming:
       name: "Dimming"
       icon: mdi:lightbulb-on-50
@@ -199,7 +191,7 @@ triggers:
     type: remote_button_long_press
     subtype: button_1
     trigger: device
-    id: script_1
+    id: action_1
   - device_id: !input controller_device_id
     domain: zha
     type: remote_button_short_release
@@ -235,7 +227,7 @@ triggers:
     type: remote_button_long_press
     subtype: button_2
     trigger: device
-    id: script_2
+    id: action_2
   - device_id: !input controller_device_id
     domain: zha
     type: remote_button_short_release
@@ -271,7 +263,7 @@ triggers:
     type: remote_button_long_press
     subtype: button_3
     trigger: device
-    id: script_3
+    id: action_3
   - device_id: !input controller_device_id
     domain: zha
     type: remote_button_short_release
@@ -283,7 +275,7 @@ triggers:
     type: remote_button_long_press
     subtype: button_4
     trigger: device
-    id: script_4
+    id: action_4
   - device_id: !input controller_device_id
     domain: zha
     type: remote_button_short_press
@@ -322,11 +314,6 @@ actions:
         scene_3c: !input scene_3c_light_profile
         scene_3d: !input scene_3d_light_profile
         scene_3e: !input scene_3e_light_profile
-      scripts:
-        script_1: !input script_1_entity_id
-        script_2: !input script_2_entity_id
-        script_3: !input script_3_entity_id
-        script_4: !input script_4_entity_id
       dim_min_brightness: !input dim_min_brightness
   - choose:
       - conditions:
@@ -386,15 +373,22 @@ actions:
       - conditions:
           - condition: trigger
             id:
-              - script_1
-              - script_2
-              - script_3
-              - script_4
-          - condition: template
-            value_template: "{{ scripts[trigger.id] != '' }}"
-        sequence:
-          - action: "{{ scripts[trigger.id] }}"
-            metadata: {}
-            data: {}
+              - action_1
+        sequence: !input action_1
+      - conditions:
+          - condition: trigger
+            id:
+              - action_2
+        sequence: !input action_2
+      - conditions:
+          - condition: trigger
+            id:
+              - action_3
+        sequence: !input action_3
+      - conditions:
+          - condition: trigger
+            id:
+              - action_4
+        sequence: !input action_4
 mode: queued
 max: 10
