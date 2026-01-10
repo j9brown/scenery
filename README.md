@@ -455,7 +455,7 @@ The scene entity's default name is formed by combining the scene group name and 
 | entities          | no       | A map of entity IDs and state attributes to apply. |
 | transition        | yes      | The transition duration in seconds as a float. |
 | icon              | yes      | The icon for the scene entity. Defaults to "mdi:palette". |
-| unique_id         | yes      | An ID that uniquely identifies this scene entity. Set this to a unique value to allow customization through the UI.  |
+| unique_id         | yes      | An ID that uniquely identifies this scene entity. Set this to a unique value to allow customization through the UI. The unique ID is not an entity ID; Home Assistant generates a default entity ID automatically based on the name of the entity.  Refer to this [FAQ](https://www.home-assistant.io/faq/unique_id/) for more information on how the unique ID is used and how to change the entity ID. |
 
 ```yaml
   # Declare some scenes
@@ -516,7 +516,7 @@ The select entity's default name is the name of the scene group.  If you specify
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
 | icon              | yes      | The icon for the scene select entity. Defaults to "mdi:palette". |
-| unique_id         | yes      | An ID that uniquely identifies this select entity. Set this to a unique value to allow customization through the UI. |
+| unique_id         | yes      | An ID that uniquely identifies this scene entity. Set this to a unique value to allow customization through the UI. The unique ID is not an entity ID; Home Assistant generates a default entity ID automatically based on the name of the entity.  Refer to this [FAQ](https://www.home-assistant.io/faq/unique_id/) for more information on how the unique ID is used and how to change the entity ID. |
 
 ```yaml
   # Create a scene select entity whose options are the scenes in the scene group
