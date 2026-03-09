@@ -296,9 +296,10 @@ scenery:
 
 Each element of the `profiles` list defines a light profile.  A light profile has a unique name and a set of lighting attributes such as a color, brightness, and transition.
 
-The list of profiles defined here serves a similar purpose to the [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) file but it supports more color formats and the default turn-on profiles are configured in the `lights` element.
+The list of profiles defined here serves a similar purpose to the [light_profiles.csv](https://www.home-assistant.io/integrations/light/#default-turn-on-values) file but it supports more color modes and the default turn-on profiles are configured in the `lights` element.
 
-*Note: Some light profile color formats cannot be represented as favorite colors so they will be omitted from the list of favorite colors shown in the more-info dialog.*
+> [!NOTE]
+> Profile colors will be automatically included as [favorite_colors](#favorite-colors-element) in the light's more-info dialog when they are defined with one of the supported favorite color modes.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
@@ -384,7 +385,10 @@ For example, the profile select entity for `light.my_light` whose name is *My Li
 
 ### Favorite colors element
 
-Each element of the `favorite_colors` list within a [`lights` element](#lights-element) adds a favorite color to the light's more-info dialog.  The frontend only supports a subset of all color formats as indicated below.
+Each element of the `favorite_colors` list within a [`lights` element](#lights-element) adds a favorite color to the light's more-info dialog.  The frontend only supports a subset of all color modes as indicated below.
+
+> [!TIP]
+> You don't need to add favorite color entries for colors that already appear in one of the light's `profiles` because they will be included automatically if they are defined with one of the supported favorite color modes.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
@@ -447,7 +451,8 @@ Use the `scene.turn_on` action to activate a scene entity.  You can also activat
 
 The scene entity's default name is formed by combining the scene group name and the scene name.  If you specify a `unique_id` then you can change the entity's ID and name in the Home Assistant UI.
 
-*Tip: It's a good idea to ensure that every scene belonging to a scene group provides a state for the same set of entities.  That way there's no ambiguity when switching scenes: all of the related entities will have a defined state.*
+> [!TIP]
+> It's a good idea to ensure that every scene belonging to a scene group provides a state for the same set of entities.  That way there's no ambiguity when switching scenes: all of the related entities will have a defined state.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
@@ -552,9 +557,8 @@ data:
 
 Use [select actions](https://www.home-assistant.io/integrations/select/) to apply a light profile or scene with a [profile select entity](#profile-select-element) or [scene select entity](#scene-select-element).
 
-*Tip: You can make a button automation that cycles through light profiles of a profile select entity in sequence with the `select.select_next` and `select.select_previous` actions.  Similarly, you can turn the light on to its default profile using `select.select_first` or turn it off with `select.select_last` (if it has an off option).*
-
-*Tip: You can cycle through the scenes of a scene select entity in the same way.*
+> [!TIP]
+> You can make a button automation that cycles through light profiles of a profile select entity in sequence with the `select.select_next` and `select.select_previous` actions.  Similarly, you can turn the light on to its default profile using `select.select_first` or turn it off with `select.select_last` (if it has an off option).  You can cycle through the scenes of a scene select entity in the same way.
 
 ### scene.turn_on
 
@@ -650,7 +654,25 @@ data:
   favorite_colors: []
 ```
 
-Tip: You can also set the favorite colors of a light with the [light configuration element](#light-configuration-element).
+> [!TIP]
+> You can also set the favorite colors of a light with the [light configuration element](#light-configuration-element).
+
+## Troubleshooting
+
+### Color matching
+
+*Problem: When I select a profile from the drop-down, the light changes color but the selected profile changes to a different value or becomes unknown.*
+
+When the light changes color, Scenery tries to find the profile with the closest matching color and updates the profile select state accordingly.  Scenery sets the profile select state to unknown if there is no good match.  Here are some reasons this might happen.
+
+a. The light may not be able to represent the profile's color precisely so it uses a slightly different color that doesn't match the profile closely enough.  In this case, you may work around the issue by adjusting the profile color to fall in the range of what the light supports.  The same thing may happen with brightness too.
+
+b. The light may use a different color format internally and there is a loss of precision when the profile color is converted to that format when setting the color and then back again for comparison.  For example, Philips Hue natively uses the `xy_color` color format and the conversion from `rgb_color` to `xy_color` to `rgb_color` is lossy.  In this case, you may work around the issue by defining the profile color in the light's internal color format.
+
+> [!TIP]
+> Use the Settings > Developer > States table to examine the light's attributes after selecting a profile, particularly `color_mode`, `*_color`, `color_temp_kelvin`, and `brightness`.
+
+If you're curious about the details of the color matching algorithm, see [light_utils.py](./custom_components/scenery/light_utils.py).
 
 ## Installation
 
