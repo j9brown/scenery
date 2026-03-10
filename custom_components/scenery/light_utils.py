@@ -14,6 +14,8 @@ from homeassistant.components.light import (
     ATTR_COLOR_NAME,
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
+    ATTR_MAX_COLOR_TEMP_KELVIN,
+    ATTR_MIN_COLOR_TEMP_KELVIN,
     ATTR_RGB_COLOR,
     ATTR_RGBW_COLOR,
     ATTR_RGBWW_COLOR,
@@ -112,9 +114,9 @@ def unique_colors(colors: list[Color]) -> list[Color]:
 FAVORITE_COLOR_SCHEMA = vol.All(validate_favorite_color, COLOR_SCHEMA)
 
 
-TOLERANCE_HUE = 2
-TOLERANCE_SATURATION = 2
-TOLERANCE_PRIMARY = 2
+TOLERANCE_HUE = 5
+TOLERANCE_SATURATION = 5
+TOLERANCE_PRIMARY = 5
 TOLERANCE_CHROMATICITY = 0.05
 TOLERANCE_KELVIN = 100
 TOLERANCE_BRIGHTNESS = 2
@@ -160,9 +162,14 @@ def compare_state_to_color(a: Mapping[str, Any], b: Color) -> bool:
     if (
         (a_kelvin := a.get(ATTR_COLOR_TEMP_KELVIN)) is not None
         and (b_kelvin := b.get(ATTR_COLOR_TEMP_KELVIN)) is not None
-        and compare_kelvin(a_kelvin, b_kelvin)
     ):
-        return True
+        if (a_kelvin_max := a.get(ATTR_MAX_COLOR_TEMP_KELVIN)) is not None:
+            b_kelvin = min(int(b_kelvin), int(a_kelvin_max))
+        if (a_kelvin_min := a.get(ATTR_MIN_COLOR_TEMP_KELVIN)) is not None:
+            b_kelvin = max(int(b_kelvin), int(a_kelvin_min))
+        if compare_kelvin(a_kelvin, b_kelvin):
+            return True
+
     if (
         (a_rgbww := a.get(ATTR_RGBWW_COLOR)) is not None
         and (b_rgbww := b.get(ATTR_RGBWW_COLOR)) is not None
