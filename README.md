@@ -15,6 +15,11 @@ Scenery helps you configure light profiles, favorite colors, and scenes for all 
 
 ## Quick start
 
+1. [Install](#installation) the Scenery integration.
+2. Edit your `configuration.yaml` file to declare your light profiles, favorite colors, and scenes, as shown in the following examples.
+3. Navigate to *Settings > Developer tools > YAML*, click *Check configuration* to check for errors.  If no errors are detected, click *Scenery* (or *All YAML configuration*) within the *YAML configuration reloading* section to apply your changes without restarting Home Assistant.
+4. Play!
+
 ### Configuration example
 
 Here's an example that you could add to your `configuration.yaml`.

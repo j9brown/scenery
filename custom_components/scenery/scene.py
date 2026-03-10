@@ -44,10 +44,11 @@ def setup_platform(  # noqa: D103
     if discovery_info is None:
         return
     scenery = hass.data[DOMAIN]
+    scenery_config = scenery.scenery_config
     add_entities(
         [
             SceneryScene(scene_group, scene)
-            for scene_group in scenery.scene_groups
+            for scene_group in scenery_config.scene_groups
             for scene in scene_group.scenes
         ]
     )

@@ -23,7 +23,7 @@ from . import (
     EventEntityRegistryUpdatedData,
     LightConfig,
     SceneGroup,
-    Scenery,
+    SceneryConfig,
     async_apply_scene,
     async_turn_off,
     async_turn_on,
@@ -130,8 +130,8 @@ class ScenerySceneSelectEntity(SelectEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, scenery: Scenery, scene_group: SceneGroup) -> None:  # noqa: D107
-        self.scenery = scenery
+    def __init__(self, scenery_config: SceneryConfig, scene_group: SceneGroup) -> None:  # noqa: D107
+        self.scenery_config = scenery_config
         self.scene_group = scene_group
         self.entity_description = SelectEntityDescription(
             key="scene",
@@ -172,7 +172,7 @@ class ScenerySceneSelectEntity(SelectEntity):
             if (state := self.hass.states.get(entity_id)) is not None
         }
         if states:
-            scene = guess_scene(self.scenery, states, self.scene_group.scenes)
+            scene = guess_scene(self.scenery_config, states, self.scene_group.scenes)
             self._attr_current_option = scene.name if scene is not None else None
             self._attr_available = True
         else:
@@ -191,16 +191,17 @@ def setup_platform(  # noqa: D103
     if discovery_info is None:
         return
     scenery = hass.data[DOMAIN]
+    scenery_config = scenery.scenery_config
     add_entities(
         [
             *(
                 SceneryLightProfileSelectEntity(light_entity_id, light_config)
-                for light_entity_id, light_config in scenery.light_configs.items()
+                for light_entity_id, light_config in scenery_config.light_configs.items()
                 if light_config.profile_select is not None
             ),
             *(
-                ScenerySceneSelectEntity(scenery, item)
-                for item in scenery.scene_groups
+                ScenerySceneSelectEntity(scenery_config, item)
+                for item in scenery_config.scene_groups
                 if item.scene_select is not None
             ),
         ]

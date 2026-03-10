@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_UNIQUE_ID,
     Platform,
+    SERVICE_RELOAD,
     STATE_ON,
 )
 from homeassistant.core import (
@@ -38,12 +39,18 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.helpers import discovery, entity_registry as er
+from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.discovery import load_platform
 from homeassistant.helpers.event import (
     EventEntityRegistryUpdatedData,
     async_track_entity_registry_updated_event,
 )
+from homeassistant.helpers.reload import (
+    async_integration_yaml_config,
+    async_reload_integration_platforms,
+)
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.state import async_reproduce_state
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.components.homeassistant.scene import STATES_SCHEMA
@@ -74,6 +81,11 @@ from .light_utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+PLATFORMS = [
+    Platform.SCENE,
+    Platform.SELECT,
+]
 
 DEBUG_SCORING = False
 
@@ -211,6 +223,8 @@ SET_FAVORITE_COLORS_SCHEMA = vol.Schema(
     },
 )
 
+RELOAD_SCHEMA = vol.Schema({})
+
 
 @dataclass(kw_only=True)
 class LightProfile:
@@ -341,6 +355,30 @@ class Scene:
             unique_id=config.get(CONF_UNIQUE_ID),
         )
 
+    def _apply_profile(self, light_profiles: Mapping[str, LightProfile]):
+        # If the scene has a profile attribute, apply the state of the profile to the scene
+        # and omit the profile attribute.  We need to do this because the light platform's
+        # implementation of async_reproduce_state() does not support the profile attribute.
+        for state in self.states.values():
+            profile_name = state.attributes.get(ATTR_PROFILE)
+            if profile_name is not None:
+                profile = light_profiles.get(profile_name)
+                if profile is not None:
+                    new_attributes = {
+                        k: v for k, v in state.attributes.items() if k != ATTR_PROFILE
+                    }
+                    profile.apply(
+                        new_attributes,
+                        set_color_and_brightness=state.state == STATE_ON,
+                    )
+                    state.attributes = ReadOnlyDict(new_attributes)
+                else:
+                    _LOGGER.warning(
+                        "Scene '%s' references undefined light profile '%s'",
+                        self.name,
+                        profile_name,
+                    )
+
 
 @dataclass(kw_only=True)
 class SceneSelect:
@@ -379,61 +417,53 @@ class SceneGroup:
         )
 
 
+@dataclass(kw_only=True)
+class SceneryConfig:
+    """Configures the scenery integration."""
+
+    light_profiles: Mapping[str, LightProfile]
+    light_configs: Mapping[str, LightConfig]
+    scene_groups: list[SceneGroup]
+
+    @staticmethod
+    def from_config(config: ConfigType) -> SceneryConfig:
+        light_profiles = {}
+        light_configs = {}
+        scene_groups = []
+        for item in config.get(CONF_PROFILES, []):
+            light_profile = LightProfile.from_config(item)
+            light_profiles[light_profile.name] = light_profile
+        for item in config.get(CONF_LIGHTS, []):
+            light_config = LightConfig.from_config(item, light_profiles)
+            for entity_id in item[CONF_ENTITY_ID]:
+                light_configs[entity_id] = light_config
+        for item in config.get(CONF_SCENE_GROUPS, []):
+            scene_group = SceneGroup.from_config(item)
+            for scene in scene_group.scenes:
+                scene._apply_profile(light_profiles)
+            scene_groups.append(scene_group)
+        return SceneryConfig(
+            light_profiles=light_profiles,
+            light_configs=light_configs,
+            scene_groups=scene_groups
+        )
+
+
 class Scenery:
     """Integrates with light profiles and favorite colors."""
 
     def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:  # noqa: D107
         self.hass = hass
-        self.light_profiles = {}
-        self.light_configs = {}
-        self.scene_groups = []
-        self._configure(config)
+        self.scenery_config = SceneryConfig.from_config(config)
         self._intercept_light_profiles()
         self._track_registry_unsub = None
-
-    def _configure(self, config: ConfigType) -> None:
-        for item in config.get(CONF_PROFILES, []):
-            light_profile = LightProfile.from_config(item)
-            self.light_profiles[light_profile.name] = light_profile
-        for item in config.get(CONF_LIGHTS, []):
-            light_config = LightConfig.from_config(item, self.light_profiles)
-            for entity_id in item[CONF_ENTITY_ID]:
-                self.light_configs[entity_id] = light_config
-        for item in config.get(CONF_SCENE_GROUPS, []):
-            scene_group = SceneGroup.from_config(item)
-            for scene in scene_group.scenes:
-                self._apply_profiles_to_scene_states(scene)
-            self.scene_groups.append(scene_group)
-
-    def _apply_profiles_to_scene_states(self, scene: Scene):
-        # Apply the definition of light profiles to the scene's states ahead of time because
-        # the light platform ignores the profile attribute when reproducing a state.
-        for state in scene.states.values():
-            profile_name = state.attributes.get(ATTR_PROFILE)
-            if profile_name is not None:
-                profile = self.light_profiles.get(profile_name)
-                if profile is not None:
-                    new_attributes = {
-                        k: v for k, v in state.attributes.items() if k != ATTR_PROFILE
-                    }
-                    profile.apply(
-                        new_attributes,
-                        set_color_and_brightness=state.state == STATE_ON,
-                    )
-                    state.attributes = ReadOnlyDict(new_attributes)
-                else:
-                    _LOGGER.warning(
-                        "Scene '%s' references undefined light profile '%s'",
-                        scene.name,
-                        profile_name,
-                    )
 
     def _intercept_light_profiles(self) -> None:
         def apply_default(
             entity_id: str, state_on: bool | None, params: dict[str, Any]
         ) -> bool:
             return (
-                (config := self.light_configs.get(entity_id)) is not None
+                (config := self.scenery_config.light_configs.get(entity_id)) is not None
                 and (profile := config.default_profile) is not None
                 and profile.apply(params, not state_on or not params)
             )
@@ -443,7 +473,7 @@ class Scenery:
             params: dict[str, Any],
         ) -> bool:
             return (
-                profile := self.light_profiles.get(name)
+                profile := self.scenery_config.light_profiles.get(name)
             ) is not None and profile.apply(params)
 
         _profiles_apply_default = Profiles.apply_default
@@ -467,21 +497,29 @@ class Scenery:
     def async_setup(self) -> None:  # noqa: D102
         self._track_registry_unsub = async_track_entity_registry_updated_event(
             self.hass,
-            self.light_configs.keys(),
+            self.scenery_config.light_configs.keys(),
             self._handle_registry_updated_event,
         )
-        for entity_id in self.light_configs:
-            self._try_set_favorite_colors(entity_id)
+        self._try_set_favorite_colors()
+
+    def async_reload(self, config: ConfigType) -> None:
+        self.scenery_config = SceneryConfig.from_config(config)
+        self._track_registry_unsub()
+        self.async_setup()
 
     @callback
     def _handle_registry_updated_event(
         self, event: Event[EventEntityRegistryUpdatedData]
     ) -> None:
         if event.data["action"] == "create":
-            self._try_set_favorite_colors(event.data["entity_id"])
+            self._try_set_favorite_colors_for_entity(event.data["entity_id"])
 
-    def _try_set_favorite_colors(self, entity_id: str) -> None:
-        light_config = self.light_configs[entity_id]
+    def _try_set_favorite_colors(self) -> None:
+        for entity_id in self.scenery_config.light_configs:
+            self._try_set_favorite_colors_for_entity(entity_id)
+
+    def _try_set_favorite_colors_for_entity(self, entity_id: str) -> None:
+        light_config = self.scenery_config.light_configs[entity_id]
         with contextlib.suppress(EntityNotFound):
             async_set_favorite_colors(
                 self.hass,
@@ -512,11 +550,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         supports_response=SupportsResponse.ONLY,
     )
 
-    async def _handle_set_favorite_colors(call: ServiceCall) -> ServiceResponse:
+    async def _handle_set_favorite_colors(call: ServiceCall) -> None:
         entity_id = call.data[CONF_ENTITY_ID]
         colors = call.data.get(CONF_FAVORITE_COLORS)
         async_set_favorite_colors(hass, entity_id, colors)
-        return None
 
     hass.services.async_register(
         DOMAIN,
@@ -525,10 +562,28 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=SET_FAVORITE_COLORS_SCHEMA,
     )
 
+    async def _handle_reload(call: ServiceCall) -> None:
+        config = await async_integration_yaml_config(hass, DOMAIN)
+        if config is None:
+            return
+        scenery.async_reload(config[DOMAIN])
+
+        await async_reload_integration_platforms(hass, DOMAIN, PLATFORMS)
+        for platform in PLATFORMS:
+            load_platform(hass, platform, DOMAIN, {}, config)
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        SERVICE_RELOAD,
+        _handle_reload,
+        schema=RELOAD_SCHEMA,
+    )
+
     scenery.async_setup()
 
-    discovery.load_platform(hass, Platform.SCENE, DOMAIN, {}, config)
-    discovery.load_platform(hass, Platform.SELECT, DOMAIN, {}, config)
+    for platform in PLATFORMS:
+        load_platform(hass, platform, DOMAIN, {}, config)
     return True
 
 
@@ -646,16 +701,16 @@ async def async_apply_scene(
 
 
 def guess_scene(
-    scenery: Scenery, states: Mapping[str, State], candidates: list[Scene]
+    scenery_config: SceneryConfig, states: Mapping[str, State], candidates: list[Scene]
 ) -> Scene | None:
     """Guess which scene is active by comparing state attributes."""
     profiles = {
         id: profile.name
         for id, state in states.items()
-        if id in scenery.light_configs
+        if id in scenery_config.light_configs
         and (
             profile := guess_profile(
-                state.attributes, scenery.light_configs[id].profiles
+                state.attributes, scenery_config.light_configs[id].profiles
             )
         )
         is not None
