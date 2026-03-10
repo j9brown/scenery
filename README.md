@@ -33,8 +33,8 @@ This example does several things:
     - The [`profile_select` element](#profile-select-element) creates a select entity for each light with options for each profile in the list including an option to turn the light off.  The currently selected option updates as the state of the light changes.
     - The favorite color picker in each light's more-info dialog is populated with with the colors of each profile in the list and the [`favorite_colors` element](#favorite-colors-element).  **Caution: All previously saved favorite colors for these lights will be deleted!**
   - The [`scene_groups` element](#scene-groups-element) defines groups of related scenes to control a few lights in a coordinated manner.
-    - The [`scenes` element](#scenes-element) creates a scene entities and specifies the entity states to be applied when they are activated.
-    - The [`scene_select` element](#scene-select-element) creates a select entity whose options are the names of the scenes in the group.  The currently selected option updates as the state of the entities in the scene changes.
+    - The [`scenes` element](#scenes-element) creates a scene entity and specifies the entity states to be applied when they are activated.
+    - The [`scene_select` element](#scene-select-element) creates a select entity whose options are the names of the scenes in the group.  The currently selected option updates as the states of the entities in the scene change.
 
 Read the [configuration elements section](#configuration-elements) for more information.
 
@@ -455,6 +455,9 @@ Here are some common state attributes for different types of entities:
 Use the `scene.turn_on` action to activate a scene entity.  You can also activate scenes within a scene group using a [scene select entity](#scene-select-element).
 
 The scene entity's default name is formed by combining the scene group name and the scene name.  If you specify a `unique_id` then you can change the entity's ID and name in the Home Assistant UI.
+
+> [!IMPORTANT]
+> When applying the `profile` attribute to a light in a scene, you must also create a [`lights` element](#lights-element) to associate that profile with the light entity.
 
 > [!TIP]
 > It's a good idea to ensure that every scene belonging to a scene group provides a state for the same set of entities.  That way there's no ambiguity when switching scenes: all of the related entities will have a defined state.

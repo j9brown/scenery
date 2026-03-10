@@ -92,26 +92,27 @@ DEBUG_SCORING = False
 
 def _validate_domain(config: ConfigType) -> ConfigType:
     profile_names = set()
-    for item in config.get(CONF_PROFILES, []):
-        if (name := item[CONF_NAME]) in profile_names:
+    for profile_item in config.get(CONF_PROFILES, []):
+        if (name := profile_item[CONF_NAME]) in profile_names:
             raise vol.Invalid(
                 f"Profile configuration contains duplicate profile name '{name}'"
             )
         profile_names.add(name)
 
-    entity_ids = set()
-    for item in config.get(CONF_LIGHTS, []):
-        for entity_id in item[CONF_ENTITY_ID]:
-            if entity_id in entity_ids:
-                raise vol.Invalid(
-                    f"Light configuration contains duplicate entity ID '{entity_id}'"
-                )
-            entity_ids.add(entity_id)
-        for name in item.get(CONF_PROFILES, []):
+    all_light_profiles = dict()
+    for light_item in config.get(CONF_LIGHTS, []):
+        light_profiles = light_item.get(CONF_PROFILES, [])
+        for name in light_profiles:
             if name not in profile_names:
                 raise vol.Invalid(
                     f"Light configuration contains unknown profile name '{name}'"
                 )
+        for entity_id in light_item[CONF_ENTITY_ID]:
+            if entity_id in all_light_profiles:
+                raise vol.Invalid(
+                    f"Light configuration contains duplicate entity ID '{entity_id}'"
+                )
+            all_light_profiles[entity_id] = light_profiles
 
     scene_group_names = set()
     for scene_group_item in config.get(CONF_SCENE_GROUPS, []):
@@ -127,6 +128,14 @@ def _validate_domain(config: ConfigType) -> ConfigType:
                     f"Scene configuration contains duplicate scene '{scene_name}' in scene group '{scene_group_name}'"
                 )
             scene_names.add(scene_name)
+            for entity_id, state in scene_item[CONF_ENTITIES].items():
+                profile_name = state.attributes.get(ATTR_PROFILE)
+                if profile_name is not None:
+                    light_profiles = all_light_profiles.get(entity_id)
+                    if light_profiles is None or profile_name not in light_profiles:
+                        raise vol.Invalid(
+                            f"Scene configuration for scene '{scene_name}' in scene group '{scene_group_name}' provides a state for entity id '{entity_id}' that references light profile '{profile_name}' which is not associated with the light; please modify the lights configuration to associate the light profile with the light"
+                        )
 
     return config
 
@@ -362,22 +371,15 @@ class Scene:
         for state in self.states.values():
             profile_name = state.attributes.get(ATTR_PROFILE)
             if profile_name is not None:
-                profile = light_profiles.get(profile_name)
-                if profile is not None:
-                    new_attributes = {
-                        k: v for k, v in state.attributes.items() if k != ATTR_PROFILE
-                    }
-                    profile.apply(
-                        new_attributes,
-                        set_color_and_brightness=state.state == STATE_ON,
-                    )
-                    state.attributes = ReadOnlyDict(new_attributes)
-                else:
-                    _LOGGER.warning(
-                        "Scene '%s' references undefined light profile '%s'",
-                        self.name,
-                        profile_name,
-                    )
+                profile = light_profiles[profile_name]
+                new_attributes = {
+                    k: v for k, v in state.attributes.items() if k != ATTR_PROFILE
+                }
+                profile.apply(
+                    new_attributes,
+                    set_color_and_brightness=state.state == STATE_ON,
+                )
+                state.attributes = ReadOnlyDict(new_attributes)
 
 
 @dataclass(kw_only=True)
