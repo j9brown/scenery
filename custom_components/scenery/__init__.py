@@ -134,7 +134,10 @@ def _validate_domain(config: ConfigType) -> ConfigType:
                     light_profiles = all_light_profiles.get(entity_id)
                     if light_profiles is None or profile_name not in light_profiles:
                         raise vol.Invalid(
-                            f"Scene configuration for scene '{scene_name}' in scene group '{scene_group_name}' provides a state for entity id '{entity_id}' that references light profile '{profile_name}' which is not associated with the light; please modify the lights configuration to associate the light profile with the light"
+                            f"Scene configuration for scene '{scene_name}' in scene group '{scene_group_name}' provides "
+                            f"a state for entity id '{entity_id}' that references light profile '{profile_name}' which is "
+                            "not associated with the light; please modify the light configuration to associate the light "
+                            "profile with the light entity"
                         )
 
     return config
@@ -447,7 +450,7 @@ class SceneryConfig:
         return SceneryConfig(
             light_profiles=light_profiles,
             light_configs=light_configs,
-            scene_groups=scene_groups
+            scene_groups=scene_groups,
         )
 
 

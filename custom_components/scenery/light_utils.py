@@ -159,10 +159,9 @@ def compare_state_to_color(a: Mapping[str, Any], b: Color) -> bool:
     if b.get(ATTR_WHITE) is not None:
         return a.get(ATTR_COLOR_MODE) == ColorMode.WHITE
 
-    if (
-        (a_kelvin := a.get(ATTR_COLOR_TEMP_KELVIN)) is not None
-        and (b_kelvin := b.get(ATTR_COLOR_TEMP_KELVIN)) is not None
-    ):
+    if (a_kelvin := a.get(ATTR_COLOR_TEMP_KELVIN)) is not None and (
+        b_kelvin := b.get(ATTR_COLOR_TEMP_KELVIN)
+    ) is not None:
         if (a_kelvin_max := a.get(ATTR_MAX_COLOR_TEMP_KELVIN)) is not None:
             b_kelvin = min(int(b_kelvin), int(a_kelvin_max))
         if (a_kelvin_min := a.get(ATTR_MIN_COLOR_TEMP_KELVIN)) is not None:
