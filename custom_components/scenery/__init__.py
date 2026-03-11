@@ -60,6 +60,7 @@ from homeassistant.util.read_only_dict import ReadOnlyDict
 from .const import (
     CONF_FAVORITE_COLORS,
     CONF_OFF_OPTION,
+    CONF_PROFILE_DEFAULT,
     CONF_PROFILE_SELECT,
     CONF_PROFILES,
     CONF_SCENE_GROUPS,
@@ -94,9 +95,7 @@ def _validate_domain(config: ConfigType) -> ConfigType:
     profile_names = set()
     for profile_item in config.get(CONF_PROFILES, []):
         if (name := profile_item[CONF_NAME]) in profile_names:
-            raise vol.Invalid(
-                f"Profile configuration contains duplicate profile name '{name}'"
-            )
+            raise vol.Invalid(f"Duplicate profile name '{name}' in profiles/name")
         profile_names.add(name)
 
     all_light_profiles = dict()
@@ -104,13 +103,17 @@ def _validate_domain(config: ConfigType) -> ConfigType:
         light_profiles = light_item.get(CONF_PROFILES, [])
         for name in light_profiles:
             if name not in profile_names:
-                raise vol.Invalid(
-                    f"Light configuration contains unknown profile name '{name}'"
-                )
+                raise vol.Invalid(f"Unknown profile name '{name}' in lights/profiles")
+        if (
+            profile_default_name := config.get(CONF_PROFILE_DEFAULT)
+        ) is not None and profile_default_name not in profile_names:
+            raise vol.Invalid(
+                f"Unknown profile name '{name}' in lights/profile_default "
+            )
         for entity_id in light_item[CONF_ENTITY_ID]:
             if entity_id in all_light_profiles:
                 raise vol.Invalid(
-                    f"Light configuration contains duplicate entity ID '{entity_id}'"
+                    f"Duplicate entity ID '{entity_id}' in lights/entity_id"
                 )
             all_light_profiles[entity_id] = light_profiles
 
@@ -118,14 +121,14 @@ def _validate_domain(config: ConfigType) -> ConfigType:
     for scene_group_item in config.get(CONF_SCENE_GROUPS, []):
         if (scene_group_name := scene_group_item[CONF_NAME]) in scene_group_names:
             raise vol.Invalid(
-                f"Scene configuration contains duplicate scene group name '{scene_group_name}'"
+                f"Duplicate scene group name '{scene_group_name}' in scene_groups/name"
             )
         scene_group_names.add(scene_group_name)
         scene_names = set()
         for scene_item in scene_group_item.get(CONF_SCENES, []):
             if (scene_name := scene_item[CONF_NAME]) in scene_names:
                 raise vol.Invalid(
-                    f"Scene configuration contains duplicate scene '{scene_name}' in scene group '{scene_group_name}'"
+                    f"Duplicate scene name '{scene_name}' for scene group '{scene_group_name}' in scene_groups/scenes/name"
                 )
             scene_names.add(scene_name)
             for entity_id, state in scene_item[CONF_ENTITIES].items():
@@ -134,14 +137,16 @@ def _validate_domain(config: ConfigType) -> ConfigType:
                     light_profiles = all_light_profiles.get(entity_id)
                     if light_profiles is None or profile_name not in light_profiles:
                         raise vol.Invalid(
-                            f"Scene configuration for scene '{scene_name}' in scene group '{scene_group_name}' provides "
-                            f"a state for entity id '{entity_id}' that references light profile '{profile_name}' which is "
-                            "not associated with the light; please modify the light configuration to associate the light "
-                            "profile with the light entity"
+                            f"Scene '{scene_name}' for scene group '{scene_group_name}' provides a state for entity ID "
+                            f"'{entity_id}' in scene_groups/scenes/entities whose profile attribute references a light "
+                            f"profile named '{profile_name}' which is not associated with that light entity; please "
+                            "ensure that the light profile exists and add it to the light's list of profiles"
                         )
 
     return config
 
+
+NON_EMPTY_STRING = vol.All(cv.string, vol.Length(min=1))
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -151,7 +156,7 @@ CONFIG_SCHEMA = vol.Schema(
                     vol.Optional(CONF_PROFILES): [
                         COLOR_SCHEMA.extend(
                             {
-                                vol.Required(CONF_NAME): cv.string,
+                                vol.Required(CONF_NAME): NON_EMPTY_STRING,
                                 vol.Optional(ATTR_BRIGHTNESS): vol.All(
                                     vol.Coerce(int), vol.Clamp(min=0, max=255)
                                 ),
@@ -165,37 +170,45 @@ CONFIG_SCHEMA = vol.Schema(
                         vol.Schema(
                             {
                                 vol.Required(CONF_ENTITY_ID): cv.entity_ids,
-                                vol.Optional(CONF_PROFILES): [cv.string],
-                                vol.Optional(CONF_FAVORITE_COLORS): [
-                                    FAVORITE_COLOR_SCHEMA
-                                ],
+                                vol.Optional(CONF_PROFILES): [NON_EMPTY_STRING],
+                                vol.Optional(CONF_PROFILE_DEFAULT): vol.Any(
+                                    None,
+                                    NON_EMPTY_STRING,
+                                ),
                                 vol.Optional(CONF_PROFILE_SELECT): vol.All(
                                     vol.DefaultTo({}),
                                     vol.Schema(
                                         {
-                                            vol.Optional(CONF_OFF_OPTION): cv.string,
+                                            vol.Optional(
+                                                CONF_OFF_OPTION
+                                            ): NON_EMPTY_STRING,
                                             vol.Optional(CONF_ICON): cv.icon,
                                         }
                                     ),
                                 ),
+                                vol.Optional(CONF_FAVORITE_COLORS): [
+                                    FAVORITE_COLOR_SCHEMA
+                                ],
                             }
                         )
                     ],
                     vol.Optional(CONF_SCENE_GROUPS): [
                         vol.Schema(
                             {
-                                vol.Required(CONF_NAME): cv.string,
+                                vol.Required(CONF_NAME): NON_EMPTY_STRING,
                                 vol.Required(CONF_SCENES): [
                                     vol.Schema(
                                         {
-                                            vol.Required(CONF_NAME): cv.string,
+                                            vol.Required(CONF_NAME): NON_EMPTY_STRING,
                                             vol.Required(CONF_ENTITIES): STATES_SCHEMA,
                                             vol.Optional(ATTR_TRANSITION): vol.All(
                                                 vol.Coerce(float),
                                                 vol.Clamp(min=0, max=6553),
                                             ),
                                             vol.Optional(CONF_ICON): cv.icon,
-                                            vol.Optional(CONF_UNIQUE_ID): cv.string,
+                                            vol.Optional(
+                                                CONF_UNIQUE_ID
+                                            ): NON_EMPTY_STRING,
                                         }
                                     )
                                 ],
@@ -204,7 +217,9 @@ CONFIG_SCHEMA = vol.Schema(
                                     vol.Schema(
                                         {
                                             vol.Optional(CONF_ICON): cv.icon,
-                                            vol.Optional(CONF_UNIQUE_ID): cv.string,
+                                            vol.Optional(
+                                                CONF_UNIQUE_ID
+                                            ): NON_EMPTY_STRING,
                                         }
                                     ),
                                 ),
@@ -294,12 +309,9 @@ class LightConfig:
     """Configures how this integration will interact with a light."""
 
     profiles: list[LightProfile]
-    favorite_colors: list[Color]
+    profile_default: LightProfile | None
     profile_select: ProfileSelect | None
-
-    @property
-    def default_profile(self) -> LightProfile | None:
-        return self.profiles[0] if self.profiles else None
+    favorite_colors: list[Color]
 
     @property
     def favorite_colors_from_profiles(self) -> list[Color]:
@@ -313,12 +325,23 @@ class LightConfig:
     def from_config(
         config: ConfigType, profiles: Mapping[str, LightProfile]
     ) -> LightConfig:
+        profile_names = config.get(CONF_PROFILES, [])
+        profile_default_name = config.get(
+            CONF_PROFILE_DEFAULT, profile_names[0] if profile_names else None
+        )
         return LightConfig(
-            profiles=[profiles[name] for name in config.get(CONF_PROFILES, [])],
+            profiles=[profiles[name] for name in profile_names],
+            profile_default=(
+                profiles[profile_default_name]
+                if profile_default_name is not None
+                else None
+            ),
+            profile_select=(
+                ProfileSelect.from_config(c)
+                if (c := config.get(CONF_PROFILE_SELECT)) is not None
+                else None
+            ),
             favorite_colors=config.get(CONF_FAVORITE_COLORS, []),
-            profile_select=ProfileSelect.from_config(c)
-            if (c := config.get(CONF_PROFILE_SELECT)) is not None
-            else None,
         )
 
 
@@ -469,8 +492,8 @@ class Scenery:
         ) -> bool:
             return (
                 (config := self.scenery_config.light_configs.get(entity_id)) is not None
-                and (profile := config.default_profile) is not None
-                and profile.apply(params, not state_on or not params)
+                and config.profile_default is not None
+                and config.profile_default.apply(params, not state_on or not params)
             )
 
         def apply_light_profile(

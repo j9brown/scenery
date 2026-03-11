@@ -338,28 +338,40 @@ The list of profiles defined here serves a similar purpose to the [light_profile
 
 Each element of the `lights` list associates light profiles and favorite colors with a light.
 
-The `light.turn_on` action applies the color, brightness, and transition attributes of the light's default profile by default unless overridden by the action's parameters.  The `light.turn_off` action applies the transition attribute of the light's default profile by default unless overridden by the action's parameters.
+The `light.turn_on` action applies the color, brightness, and transition attributes of the light's default profile unless overridden by the action's parameters.  The `light.turn_off` action applies the transition attribute of the light's default profile unless overridden by the action's parameters.  If the light does not have a default profile, then Home Assistant will apply its own [default turn-on values](https://www.home-assistant.io/integrations/light/#default-turn-on-values).
 
 Scenery configures the favorite colors that are shown in the light's more-info dialog to make it easier for users to pick relevant colors from the color attributes of each profile listed in `profiles` and additional `favorite_colors`.  **Caution: All previously saved favorite colors for these lights will be deleted!**
+
+> [!TIP]
+> Configure each light's default profile for your comfort and convenience.  All of the profile's attributes are optional so you can decide which ones you want to use for each situation.
+>
+> To make the light turn on with a specific color and brightness by default, assign a default profile that sets those attributes.  To make the light preserve the color and brightness it had before by default (if the light integration remembers), assign a default profile that only has the transition time attribute or no attributes at all.  Or use null to leave it up to Home Assistant's default behavior without Scenery.
+>
+> The default profile does not need to be included in the list of profiles used for profile selection and matching because it is only used to inform how the light turns on and off.
 
 | Attribute         | Optional | Description |
 | ----------------- | -------- |------------ |
 | entity_id         | no       | A entity ID or a list of entity IDs for the lights to be configured by this element. |
-| profiles          | yes      | A list of light profile names.  The first entry in the list sets the default profile for the specified lights.  If the list of profiles is empty or absent, then the light does not have a default profile. |
+| profiles          | yes      | A list of light profile names to associate with these lights for profile selection and matching. |
+| profile_default   | yes      | The name of the default profile to apply when turning on and off these lights.  When absent, the first entry in the `profiles` list (if there is one) is used as the default profile.  Set to `null` (by omitting the value) to decline to apply a default profile. |
 | [profile_select](#profile-select-element) | yes      | When specified, creates a select entity for each light to select the light's active profile. |
 | [favorite_colors](#favorite-colors-element) | yes      | A list of additional favorite colors to include in the light's more-info dialog. |
 
 ```yaml
-  # Define some light profiles
+  # Associate light profiles and favorite colors with a few lights
   lights:
     - entity_id: light.my_light_1
-      profiles: [Natural, Warm]
-    - entity_id: [light.my_light_2, light.my_light_3]
-      profiles: [Warm, Red]
+      profiles: [Daylight, Natural, Warm, Candle] # default is Daylight
       profile_select:
         off_label: "Off"
       favorite_colors:
         - ...
+    - entity_id: light.my_light_2
+      profiles: [Daylight, Natural, Warm, Candle]
+      profile_default: Warm
+    - entity_id: [light.my_light_3, light.my_light_4]
+      profiles: [Warm, Red]
+      profile_default: # no default because the value is omitted (implicitly null)
 ```
 
 ### Profile select element
