@@ -179,9 +179,7 @@ CONFIG_SCHEMA = vol.Schema(
                                     vol.DefaultTo({}),
                                     vol.Schema(
                                         {
-                                            vol.Optional(
-                                                CONF_OFF_OPTION
-                                            ): NON_EMPTY_STRING,
+                                            vol.Optional(CONF_OFF_OPTION): cv.string,
                                             vol.Optional(CONF_ICON): cv.icon,
                                         }
                                     ),
